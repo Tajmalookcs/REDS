@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block title %}Map Viewer — {{ town_map.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .viewer-container {
+        position: relative;
+        background: #1a1a2e;
+        border-radius: 10px;
+        overflow: hidden;
+        min-height: 500px;
+    }
+
+    #viewerImage {
+        width: 100%;
+        height: auto;
+        display: block;
+    }
+
+    #viewerCanvas {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+    }
+
+    /* Plot Tooltip */
+    #plotTooltip {
+        position: absolute;
+        background: #1a1a2e;
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 0.82rem;
+        pointer-events: none;
+        display: none;
+        z-index: 99;
+        box-shadow: 0 4px 16px #0005;
+        min-width: 160px;
+        border: 1px solid #ffffff22;
+    }
+
+    #plotTooltip .plot-no {
+        font-size: 1rem;
+        font-weight: bold;
+        color: #e94560;
+        margin-bottom: 4px;
+    }
+
+    /* Legend */
+    .legend {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        align-items: center;
+        padding: 10px 16px;
+        background: #fff;
+        border-radius: 8px;
+        margin-bottom: 12px;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.85rem;
+    }
+
+    .legend-box {
+        width: 20px;
+        height: 14px;
+        border-radius: 3px;
+        border: 1px solid #0003;
+    }
+
+    /* Stats bar */
+    .stats-bar {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+    }
+
+    .stat-card {
+        background: #fff;
+        border-radius: 8px;
+        padding: 8px 16px;
+        text-align: center;
+        min-width: 100px;
+        box-shadow: 0 1px 4px #0001;
+    }
+
+    .stat-card .stat-num { font-size: 1.4rem; font-weight: bold; }
+    .stat-card .stat-label { font-size: 0.75rem; color: #666; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">
+        <i class="bi bi-eye"></i>
+        {{ town_map.title }}
+        <span class="text-muted fw-normal small ms-2">{{ town_map.town.name }}</span>
+        {% if town_map.block %}
+        <span class="badge bg-secondary ms-1">{{ town_map.block.name }}</span>
+        {% endif %}
+    </h5>
+    <div class="d-flex gap-2">
+        <a href="{% url 'development:map_editor' town_map.pk %}"
+           class="btn btn-sm btn-warning">
+            <i class="bi bi-pencil-square"></i> Editor
+        </a>
+        <a href="{% url 'development:map_list' %}"
+           class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+    </div>
+</div>
+
+<!-- Stats Bar -->
+<div class="stats-bar" id="statsBar">
+    <div class="stat-card">
+        <div class="stat-num text-primary" id="statTotal">0</div>
+        <div class="stat-label">Total Marked</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-num text-success" id="statAvailable">0</div>
+        <div class="stat-label">Available</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-num text-warning" id="statBooked">0</div>
+        <div class="stat-label">Booked</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-num text-danger" id="statSold">0</div>
+        <div class="stat-label">Sold</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-num text-secondary" id="statHold">0</div>
+        <div class="stat-label">On Hold</div>
+    </div>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+    <span class="fw-bold small me-2">Legend:</span>
+    <div class="legend-item">
+        <div class="legend-box" style="background:rgba(40,167,69,0.5);"></div>
+        Available
+    </div>
+    <div class="legend-item">
+        <div class="legend-box" style="background:rgba(255,193,7,0.6);"></div>
+        Booked
+    </div>
+    <div class="legend-item">
+        <div class="legend-box" style="background:rgba(220,53,69,0.6);"></div>
+        Sold
+    </div>
+    <div class="legend-item">
+        <div class="legend-box" style="background:rgba(108,117,125,0.5);"></div>
+        Hold
+    </div>
+    <div class="legend-item ms-auto text-muted small">
+        <i class="bi bi-hand-index"></i> Click a plot to view details
+    </div>
+</div>
+
+<!-- Map Viewer -->
+<div class="viewer-container" id="viewerContainer">
+    {% if town_map.is_image %}
+    <img id="viewerImage" src="{{ town_map.map_file.url }}" alt="Map">
+    {% else %}
+    <iframe src="{{ town_map.map_file.url }}"
+            style="width:100%; height:600px; border:none;"></iframe>
+    {% endif %}
+    <canvas id="viewerCanvas"></canvas>
+    <div id="plotTooltip"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const PLOTS_DATA = {{ plots_json|safe }};
+
+const canvas    = document.getElementById('viewerCanvas');
+const ctx       = canvas.getContext('2d');
+const container = document.getElementById('viewerContainer');
+const img       = document.getElementById('viewerImage');
+const tooltip   = document.getElementById('plotTooltip');
+
+// Status colors
+const STATUS_COLORS = {
+    'AVAILABLE': { fill: 'rgba(40,167,69,0.35)',  stroke: '#28a745' },
+    'BOOKED':    { fill: 'rgba(255,193,7,0.45)',   stroke: '#ffc107' },
+    'SOLD':      { fill: 'rgba(220,53,69,0.5)',    stroke: '#dc3545' },
+    'HOLD':      { fill: 'rgba(108,117,125,0.4)',  stroke: '#6c757d' },
+    'CANCELLED': { fill: 'rgba(108,117,125,0.3)',  stroke: '#adb5bd' },
+};
+
+// ── Resize canvas ──
+function resizeCanvas() {
+    if (!img) return;
+    canvas.width  = img.offsetWidth;
+    canvas.height = img.offsetHeight;
+    drawAll();
+}
+
+// ── Draw all plots ──
+function drawAll() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let counts = { AVAILABLE: 0, BOOKED: 0, SOLD: 0, HOLD: 0 };
+
+    PLOTS_DATA.forEach(plot => {
+        const coords = plot.coordinates;
+        if (!coords || coords.length < 4) return;
+
+        const x = coords[0][0] / 100 * canvas.width;
+        const y = coords[0][1] / 100 * canvas.height;
+        const w = (coords[1][0] - coords[0][0]) / 100 * canvas.width;
+        const h = (coords[2][1] - coords[0][1]) / 100 * canvas.height;
+
+        const color = STATUS_COLORS[plot.status] || STATUS_COLORS['HOLD'];
+
+        ctx.fillStyle   = color.fill;
+        ctx.strokeStyle = color.stroke;
+        ctx.lineWidth   = 1.5;
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeRect(x, y, w, h);
+
+        // Plot number label
+        ctx.fillStyle = '#000';
+        ctx.font      = 'bold 10px Arial';
+        ctx.fillText(plot.plot_no, x + 3, y + 12);
+
+        if (counts[plot.status] !== undefined) counts[plot.status]++;
+    });
+
+    // Update stats
+    document.getElementById('statTotal').textContent     = PLOTS_DATA.length;
+    document.getElementById('statAvailable').textContent = counts.AVAILABLE;
+    document.getElementById('statBooked').textContent    = counts.BOOKED;
+    document.getElementById('statSold').textContent      = counts.SOLD;
+    document.getElementById('statHold').textContent      = counts.HOLD;
+}
+
+// ── Hit test — find plot under mouse ──
+function getPlotAtPoint(mx, my) {
+    for (const plot of PLOTS_DATA) {
+        const coords = plot.coordinates;
+        if (!coords || coords.length < 4) continue;
+        const x = coords[0][0] / 100 * canvas.width;
+        const y = coords[0][1] / 100 * canvas.height;
+        const w = (coords[1][0] - coords[0][0]) / 100 * canvas.width;
+        const h = (coords[2][1] - coords[0][1]) / 100 * canvas.height;
+        if (mx >= x && mx <= x + w && my >= y && my <= y + h) return plot;
+    }
+    return null;
+}
+
+// ── Mouse move — show tooltip ──
+canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx   = e.clientX - rect.left;
+    const my   = e.clientY - rect.top;
+    const plot = getPlotAtPoint(mx, my);
+
+    if (plot) {
+        canvas.style.cursor = 'pointer';
+        tooltip.style.display = 'block';
+        tooltip.style.left    = (mx + 16) + 'px';
+        tooltip.style.top     = (my + 8)  + 'px';
+        tooltip.innerHTML = `
+            <div class="plot-no">Plot ${plot.plot_no}</div>
+            <div>Block: ${plot.block}</div>
+            <div>Size: ${plot.size} ${plot.size_unit}</div>
+            <div>Price: Rs. ${Number(plot.price).toLocaleString()}</div>
+            <div class="mt-1">
+                <span class="badge ${
+                    plot.status === 'AVAILABLE' ? 'bg-success' :
+                    plot.status === 'BOOKED'    ? 'bg-warning text-dark' :
+                    plot.status === 'SOLD'      ? 'bg-danger' : 'bg-secondary'
+                }">${plot.status}</span>
+            </div>
+            <div class="text-muted mt-1" style="font-size:0.75rem;">
+                Click to view details
+            </div>
+        `;
+    } else {
+        canvas.style.cursor = 'default';
+        tooltip.style.display = 'none';
+    }
+});
+
+canvas.addEventListener('mouseleave', () => {
+    tooltip.style.display = 'none';
+});
+
+// ── Click — open plot detail ──
+canvas.addEventListener('click', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx   = e.clientX - rect.left;
+    const my   = e.clientY - rect.top;
+    const plot = getPlotAtPoint(mx, my);
+    if (plot) window.location.href = plot.detail_url;
+});
+
+// ── Init ──
+if (img) {
+    img.onload = resizeCanvas;
+    if (img.complete) resizeCanvas();
+}
+window.addEventListener('resize', resizeCanvas);
+</script>
+{% endblock %}

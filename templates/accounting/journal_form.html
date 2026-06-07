@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} — REDS{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            {% csrf_token %}
+
+            <!-- Entry Header -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Entry Date <span class="text-danger">*</span></label>
+                    <input type="date" name="entry_date" class="form-control"
+                           value="{% now 'Y-m-d' %}" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Reference</label>
+                    <input type="text" name="reference" class="form-control"
+                           placeholder="e.g. RCP-00001, EXP-001">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Narration</label>
+                    <input type="text" name="narration" class="form-control"
+                           placeholder="Brief description">
+                </div>
+            </div>
+
+            <!-- Journal Lines -->
+            <h6 class="mb-3">Journal Lines
+                <small class="text-muted">(minimum 2 lines — debit must equal credit)</small>
+            </h6>
+
+            <table class="table table-sm" id="linesTable">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:35%">Account</th>
+                        <th style="width:20%">Debit (Rs.)</th>
+                        <th style="width:20%">Credit (Rs.)</th>
+                        <th style="width:20%">Narration</th>
+                        <th style="width:5%"></th>
+                    </tr>
+                </thead>
+                <tbody id="linesBody">
+                    <tr class="line-row">
+                        <td>
+                            <select name="account" class="form-select form-select-sm">
+                                <option value="">— Select Account —</option>
+                                {% for acc in accounts %}
+                                <option value="{{ acc.pk }}">{{ acc.code }} — {{ acc.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td><input type="number" name="debit" class="form-control form-control-sm debit-input" step="0.01" value="0" oninput="calcTotals()"></td>
+                        <td><input type="number" name="credit" class="form-control form-control-sm credit-input" step="0.01" value="0" oninput="calcTotals()"></td>
+                        <td><input type="text" name="line_narration" class="form-control form-control-sm"></td>
+                        <td></td>
+                    </tr>
+                    <tr class="line-row">
+                        <td>
+                            <select name="account" class="form-select form-select-sm">
+                                <option value="">— Select Account —</option>
+                                {% for acc in accounts %}
+                                <option value="{{ acc.pk }}">{{ acc.code }} — {{ acc.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td><input type="number" name="debit" class="form-control form-control-sm debit-input" step="0.01" value="0" oninput="calcTotals()"></td>
+                        <td><input type="number" name="credit" class="form-control form-control-sm credit-input" step="0.01" value="0" oninput="calcTotals()"></td>
+                        <td><input type="text" name="line_narration" class="form-control form-control-sm"></td>
+                        <td></td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    onclick="addLine()">
+                                <i class="bi bi-plus"></i> Add Line
+                            </button>
+                        </td>
+                        <td class="fw-semibold text-success" id="totalDebit">0</td>
+                        <td class="fw-semibold text-danger" id="totalCredit">0</td>
+                        <td colspan="2">
+                            <span id="balanceMsg" class="text-muted small"></span>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <div class="d-flex gap-2 mt-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i> Post Entry
+                </button>
+                <a href="{% url 'accounting:journal_list' %}"
+                   class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const accountOptions = `{% for acc in accounts %}<option value="{{ acc.pk }}">{{ acc.code }} — {{ acc.name }}</option>{% endfor %}`;
+
+function addLine() {
+    const row = `
+    <tr class="line-row">
+        <td><select name="account" class="form-select form-select-sm">
+            <option value="">— Select Account —</option>
+            ${accountOptions}
+        </select></td>
+        <td><input type="number" name="debit" class="form-control form-control-sm debit-input" step="0.01" value="0" oninput="calcTotals()"></td>
+        <td><input type="number" name="credit" class="form-control form-control-sm credit-input" step="0.01" value="0" oninput="calcTotals()"></td>
+        <td><input type="text" name="line_narration" class="form-control form-control-sm"></td>
+        <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove(); calcTotals()"><i class="bi bi-x"></i></button></td>
+    </tr>`;
+    document.getElementById('linesBody').insertAdjacentHTML('beforeend', row);
+}
+
+function calcTotals() {
+    let debit  = 0;
+    let credit = 0;
+    document.querySelectorAll('.debit-input').forEach(i  => debit  += parseFloat(i.value)  || 0);
+    document.querySelectorAll('.credit-input').forEach(i => credit += parseFloat(i.value) || 0);
+    document.getElementById('totalDebit').textContent  = debit.toLocaleString();
+    document.getElementById('totalCredit').textContent = credit.toLocaleString();
+    const msg = document.getElementById('balanceMsg');
+    if (debit === credit && debit > 0) {
+        msg.textContent  = '✓ Balanced';
+        msg.className    = 'text-success small fw-semibold';
+    } else {
+        msg.textContent  = '✗ Not balanced';
+        msg.className    = 'text-danger small fw-semibold';
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- Header Banner -->
+<div class="mb-4">
+    <img src="{% static 'Images/header-banner.png' %}" alt="Header Banner" class="img-fluid w-100" style="border-radius: 10px; max-height: 200px; object-fit: cover;">
+</div>
+
+<!-- KPI Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <div class="text-muted small">Total Plots</div>
+                <div class="fs-3 fw-bold text-primary">{{ total_plots }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <div class="text-muted small">Available Plots</div>
+                <div class="fs-3 fw-bold text-success">{{ available_plots }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <div class="text-muted small">Active Bookings</div>
+                <div class="fs-3 fw-bold text-warning">{{ active_bookings }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body text-center">
+                <div class="text-muted small">Total Cash Received</div>
+                <div class="fs-5 fw-bold text-info">Rs. {{ total_received|intcomma }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Summary Row -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card border-danger">
+            <div class="card-body text-center">
+                <div class="text-danger fw-bold">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    Red Alerts
+                </div>
+                <div class="fs-3 fw-bold text-danger">{{ red_count }}</div>
+                <div class="text-muted small">Overdue & Pending Refunds</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <div class="text-warning fw-bold">
+                    <i class="bi bi-clock-fill"></i>
+                    Due Soon
+                </div>
+                <div class="fs-3 fw-bold text-warning">{{ yellow_count }}</div>
+                <div class="text-muted small">Within 7–30 Days</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <div class="text-success fw-bold">
+                    <i class="bi bi-check-circle-fill"></i>
+                    Today's Receipts
+                </div>
+                <div class="fs-3 fw-bold text-success">{{ receipts_today }}</div>
+                <div class="text-muted small">Payments received today</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- RED ALERTS -->
+{% if overdue_installments %}
+<div class="card mb-4 border-danger">
+    <div class="card-header bg-danger text-white fw-bold">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        Overdue Installments ({{ overdue_installments.count }})
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Customer</th>
+                        <th>Booking</th>
+                        <th>Plot</th>
+                        <th>Due Date</th>
+                        <th>Amount</th>
+                        <th>Days Overdue</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ins in overdue_installments %}
+                    <tr class="table-danger">
+                        <td>{{ ins.booking.customer.name }}</td>
+                        <td>
+                            <a href="{% url 'sales:booking_detail' ins.booking.pk %}">
+                                {{ ins.booking.booking_no }}
+                            </a>
+                        </td>
+                        <td>{{ ins.booking.plot.plot_no }}</td>
+                        <td>{{ ins.due_date }}</td>
+                        <td>Rs. {{ ins.amount|intcomma }}</td>
+                        <td>
+                            <span class="badge bg-danger">
+                                {{ ins.due_date|timesince }} ago
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- PENDING REFUNDS -->
+{% if pending_refunds %}
+<div class="card mb-4 border-danger">
+    <div class="card-header bg-danger text-white fw-bold">
+        <i class="bi bi-cash-coin"></i>
+        Pending Refunds ({{ pending_refunds.count }})
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Customer</th>
+                        <th>Booking</th>
+                        <th>Cancel Date</th>
+                        <th>Refund Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in pending_refunds %}
+                    <tr class="table-danger">
+                        <td>{{ c.booking.customer.name }}</td>
+                        <td>{{ c.booking.booking_no }}</td>
+                        <td>{{ c.cancel_date }}</td>
+                        <td>Rs. {{ c.refund_amount|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- YELLOW — DUE SOON INSTALLMENTS -->
+{% if due_soon_installments %}
+<div class="card mb-4 border-warning">
+    <div class="card-header bg-warning text-dark fw-bold">
+        <i class="bi bi-clock-fill"></i>
+        Installments Due Within 7 Days ({{ due_soon_installments.count }})
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Customer</th>
+                        <th>Booking</th>
+                        <th>Plot</th>
+                        <th>Due Date</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ins in due_soon_installments %}
+                    <tr class="table-warning">
+                        <td>{{ ins.booking.customer.name }}</td>
+                        <td>
+                            <a href="{% url 'sales:booking_detail' ins.booking.pk %}">
+                                {{ ins.booking.booking_no }}
+                            </a>
+                        </td>
+                        <td>{{ ins.booking.plot.plot_no }}</td>
+                        <td>{{ ins.due_date }}</td>
+                        <td>Rs. {{ ins.amount|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- YELLOW — LANDLORD PAYMENTS DUE -->
+{% if landlord_due_soon %}
+<div class="card mb-4 border-warning">
+    <div class="card-header bg-warning text-dark fw-bold">
+        <i class="bi bi-map"></i>
+        Landlord Payments Due Within 30 Days ({{ landlord_due_soon.count }})
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Landlord</th>
+                        <th>Contract</th>
+                        <th>Installment</th>
+                        <th>Due Date</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in landlord_due_soon %}
+                    <tr class="table-warning">
+                        <td>{{ s.contract.landlord.name }}</td>
+                        <td>{{ s.contract.title }}</td>
+                        <td>{{ s.installment_no }}</td>
+                        <td>{{ s.due_date }}</td>
+                        <td>Rs. {{ s.amount|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ALL CLEAR -->
+{% if red_count == 0 and yellow_count == 0 %}
+<div class="alert alert-success">
+    <i class="bi bi-check-circle-fill"></i>
+    All clear — no overdue installments or pending alerts.
+</div>
+{% endif %}
+
+{% endblock %}

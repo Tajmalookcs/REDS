@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete Map — {{ town_map.title }}{% endblock %}
+
+{% block content %}
+
+<div class="topbar">
+    <div class="page-title">
+        <i class="bi bi-trash"></i> Delete Map
+    </div>
+    <a href="{% url 'development:map_list' town_pk=town_map.town.pk %}"
+       class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Maps
+    </a>
+</div>
+
+<div class="row justify-content-center">
+<div class="col-md-6">
+<div class="card border-danger">
+
+    <div class="card-header bg-danger text-white fw-semibold">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        Confirm Delete
+    </div>
+
+    <div class="card-body">
+
+        <!-- Map Preview -->
+        <div class="d-flex align-items-center gap-3 mb-4 p-3 bg-light rounded">
+            {% if town_map.is_image %}
+                <img src="{{ town_map.map_file.url }}"
+                     alt="{{ town_map.title }}"
+                     style="height:70px; width:100px;
+                            object-fit:cover; border-radius:6px;
+                            border:1px solid #dee2e6;">
+            {% else %}
+                <i class="bi bi-file-earmark-pdf-fill text-danger"
+                   style="font-size:2.5rem;"></i>
+            {% endif %}
+            <div>
+                <div class="fw-bold">{{ town_map.title }}</div>
+                <div class="text-muted small">
+                    <i class="bi bi-building"></i> {{ town_map.town.name }}
+                    {% if town_map.block %}
+                        &nbsp;|&nbsp;
+                        <i class="bi bi-grid"></i> {{ town_map.block.name }}
+                    {% else %}
+                        &nbsp;|&nbsp; Master Plan
+                    {% endif %}
+                </div>
+                <div class="text-muted small mt-1">
+                    <i class="bi bi-calendar3"></i>
+                    Uploaded {{ town_map.created_at|date:"d M Y" }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Warning Message -->
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <strong> This action cannot be undone.</strong>
+            <ul class="mb-0 mt-2">
+                <li>The map file will be permanently deleted from disk.</li>
+                {% with count=town_map.coordinates.count %}
+                {% if count > 0 %}
+                <li>
+                    <strong>{{ count }} plot marking{% if count != 1 %}s{% endif %}</strong>
+                    on this map will also be deleted.
+                </li>
+                {% endif %}
+                {% endwith %}
+                <li>This cannot be recovered.</li>
+            </ul>
+        </div>
+
+        <!-- Confirm Form -->
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-danger px-4">
+                    <i class="bi bi-trash"></i> Yes, Delete Map
+                </button>
+                <a href="{% url 'development:map_list' town_pk=town_map.town.pk %}"
+                   class="btn btn-outline-secondary px-4">
+                    <i class="bi bi-x"></i> Cancel
+                </a>
+            </div>
+        </form>
+
+    </div>
+</div>
+</div>
+</div>
+
+{% endblock %}

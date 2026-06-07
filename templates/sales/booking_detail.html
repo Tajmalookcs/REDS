@@ -1,0 +1,425 @@
+{% extends 'base.html' %}
+{% block title %}Booking #{{ booking.pk }} — REDS{% endblock %}
+{% block page_title %}Booking #{{ booking.pk }}{% endblock %}
+
+{% block content %}
+
+<!-- Summary Row -->
+<div class="row g-3 mb-4">
+
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-2">Customer</div>
+                <div class="fw-bold fs-5">{{ booking.customer.name }}</div>
+                <div class="text-muted">{{ booking.customer.contact }}</div>
+                <div class="text-muted">{{ booking.customer.cnic|default:"" }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-2">Plot Details</div>
+                <div class="fw-bold fs-5">Plot {{ booking.plot.plot_no }}</div>
+                <div class="text-muted">
+                    {{ booking.plot.block.town.name }} / Block {{ booking.plot.block.name }}
+                </div>
+                <div class="text-muted">
+                    {{ booking.plot.size }} {{ booking.plot.size_unit }}
+                    — {{ booking.plot.plot_type }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-2">Financial Summary</div>
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <td class="text-muted">Net Price</td>
+                        <td class="fw-semibold text-end">Rs. {{ booking.net_price|floatformat:0 }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Total Paid</td>
+                        <td class="fw-semibold text-success text-end">Rs. {{ booking.total_paid|floatformat:0 }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Balance</td>
+                        <td class="fw-semibold text-danger text-end">Rs. {{ booking.balance|floatformat:0 }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Booking Info Bar -->
+<div class="card mb-4">
+    <div class="card-body py-2">
+        <div class="row text-center">
+            <div class="col">
+                <div class="text-muted small">Booking Date</div>
+                <div class="fw-semibold">{{ booking.booking_date }}</div>
+            </div>
+            <div class="col">
+                <div class="text-muted small">Agent</div>
+                <div class="fw-semibold">{{ booking.agent.name|default:"—" }}</div>
+            </div>
+            <div class="col">
+                <div class="text-muted small">Discount</div>
+                <div class="fw-semibold">Rs. {{ booking.discount|floatformat:0 }}</div>
+            </div>
+            <div class="col">
+                <div class="text-muted small">Down Payment</div>
+                <div class="fw-semibold">Rs. {{ booking.down_payment|floatformat:0 }}</div>
+            </div>
+            <div class="col">
+                <div class="text-muted small">Status</div>
+                <span class="badge
+                    {% if booking.status == 'ACTIVE' %}bg-primary
+                    {% elif booking.status == 'COMPLETED' %}bg-success
+                    {% else %}bg-danger{% endif %}">
+                    {{ booking.status }}
+                </span>
+            </div>
+            <div class="col text-end">
+                <a href="{% url 'sales:booking_edit' booking.pk %}"
+                   class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-pencil"></i> Edit
+                </a>
+                {% if booking.status == 'ACTIVE' %}
+                <a href="{% url 'sales:booking_cancel' booking.pk %}"
+                   class="btn btn-sm btn-outline-warning">
+                    <i class="bi bi-x-circle"></i> Cancel
+                </a>
+                {% endif %}
+                <a href="{% url 'sales:booking_list' %}"
+                   class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+
+    <!-- Payment Plan -->
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-3">
+                    <h6 class="mb-0">Payment Plan</h6>
+                    {% if booking.status == 'ACTIVE' %}
+                    <button class="btn btn-sm btn-primary"
+                            data-bs-toggle="modal"
+                            data-bs-target="#addPlanModal">
+                        <i class="bi bi-plus-circle"></i> Add Installment
+                    </button>
+                    {% endif %}
+                </div>
+
+                <table class="table table-sm align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Due Date</th>
+                            <th>Amount</th>
+                            <th>Paid</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for plan in payment_plans %}
+                        <tr>
+                            <td>{{ plan.installment_no }}</td>
+                            <td>{{ plan.due_date }}</td>
+                            <td>{{ plan.amount|floatformat:0 }}</td>
+                            <td>{{ plan.paid_amount|floatformat:0 }}</td>
+                            <td>
+                                {% if plan.status == 'PAID' %}
+                                    <span class="badge bg-success">Paid</span>
+                                {% elif plan.status == 'PARTIAL' %}
+                                    <span class="badge bg-warning text-dark">Partial</span>
+                                {% else %}
+                                    {% if plan.due_date < today %}
+                                        <span class="badge bg-danger">Overdue</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Pending</span>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-3">
+                                No installments added.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Receipts -->
+    ```html
+    <!-- Receipts -->
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-3">
+                        <h6 class="mb-0">Receipts</h6>
+                        {% if booking.status == 'ACTIVE' %}
+                        <button class="btn btn-sm btn-success"
+                                data-bs-toggle="modal"
+                                data-bs-target="#addReceiptModal">
+                            <i class="bi bi-plus-circle"></i> Add Receipt
+                        </button>
+                        <a href="{% url 'sales:booking_print' booking.pk %}" target="_blank"
+                            class="btn btn-outline-secondary">
+                                <i class="bi bi-printer"></i> Print Booking
+                        </a>
+                        {% endif %}
+                    </div>
+
+                    <table class="table table-sm align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Receipt No</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Mode</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in receipts %}
+                            <tr>
+                                <td class="fw-semibold">{{ r.receipt_no }}</td>
+                                <td>{{ r.receipt_date }}</td>
+                                <td class="text-success">
+                                    {{ r.amount|floatformat:0 }}
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">
+                                        {{ r.payment_mode }}
+                                    </span>
+                                </td>
+
+                                <td class="text-end">
+                                    <a href="{% url 'sales:receipt_print' r.pk %}"
+                                    target="_blank"
+                                    class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-printer"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5"
+                                    class="text-center text-muted py-3">
+                                    No receipts yet.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-3">
+                    <h6 class="mb-0">Receipts</h6>
+                    {% if booking.status == 'ACTIVE' %}
+                    <button class="btn btn-sm btn-success"
+                            data-bs-toggle="modal"
+                            data-bs-target="#addReceiptModal">
+                        <i class="bi bi-plus-circle"></i> Add Receipt
+                    </button>
+                    {% endif %}
+                </div>
+
+                <table class="table table-sm align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Receipt No</th>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Mode</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in receipts %}
+                        <tr>
+                            <td class="fw-semibold">{{ r.receipt_no }}</td>
+                            <td>{{ r.receipt_date }}</td>
+                            <td class="text-success">{{ r.amount|floatformat:0 }}</td>
+                            <td>
+                                <span class="badge bg-secondary">
+                                    {{ r.payment_mode }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">
+                                No receipts yet.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+
+<!-- ======================== -->
+<!-- MODAL: Add Installment   -->
+<!-- ======================== -->
+<div class="modal fade" id="addPlanModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'sales:plan_add' booking.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h6 class="modal-title">Add Installment</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Installment No</label>
+                            <input type="number" name="installment_no"
+                                   class="form-control"
+                                   value="{{ payment_plans.count|add:1 }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Due Date</label>
+                            <input type="date" name="due_date"
+                                   class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Amount (Rs.)</label>
+                            <input type="number" name="amount"
+                                   class="form-control" step="0.01" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Notes</label>
+                            <input type="text" name="notes" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary"
+                            data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<!-- ======================== -->
+<!-- MODAL: Add Receipt        -->
+<!-- ======================== -->
+<div class="modal fade" id="addReceiptModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'sales:receipt_add' booking.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h6 class="modal-title">Record Receipt</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Link to Installment</label>
+                            <select name="payment_plan" class="form-select">
+                                <option value="">— General Payment —</option>
+                                {% for plan in payment_plans %}
+                                {% if plan.status != 'PAID' %}
+                                <option value="{{ plan.pk }}">
+                                    #{{ plan.installment_no }} — Rs.{{ plan.amount|floatformat:0 }}
+                                    (Due: {{ plan.due_date }})
+                                </option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Amount (Rs.) <span class="text-danger">*</span></label>
+                            <input type="number" name="amount"
+                                   class="form-control" step="0.01" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Receipt Date <span class="text-danger">*</span></label>
+                            <input type="date" name="receipt_date"
+                                   class="form-control"
+                                   value="{% now 'Y-m-d' %}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Payment Mode</label>
+                            <select name="payment_mode" class="form-select"
+                                    onchange="toggleCheque(this)">
+                                <option value="CASH">Cash</option>
+                                <option value="BANK">Bank Transfer</option>
+                                <option value="CHEQUE">Cheque</option>
+                            </select>
+                        </div>
+                        <div id="chequeFields" style="display:none;" class="col-12">
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <label class="form-label">Cheque No</label>
+                                    <input type="text" name="cheque_no" class="form-control">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Bank</label>
+                                    <input type="text" name="cheque_bank" class="form-control">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Cheque Date</label>
+                                    <input type="date" name="cheque_date" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Narration</label>
+                            <input type="text" name="narration" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary"
+                            data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> Save Receipt
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleCheque(sel) {
+    document.getElementById('chequeFields').style.display =
+        sel.value === 'CHEQUE' ? 'block' : 'none';
+}
+</script>
+{% endblock %}

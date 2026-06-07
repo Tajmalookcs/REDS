@@ -1,0 +1,316 @@
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Booking — {{ booking.booking_no }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; font-size: 13px; color: #000; }
+
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 10mm auto;
+            padding: 12mm;
+        }
+
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #000;
+            padding-bottom: 8px;
+            margin-bottom: 14px;
+        }
+
+        .header h2 { font-size: 20px; font-weight: bold; }
+        .header p  { font-size: 11px; color: #333; }
+
+        .doc-title {
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 14px;
+            border-bottom: 1px dashed #000;
+            padding-bottom: 8px;
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: bold;
+            background: #f0f0f0;
+            padding: 4px 8px;
+            margin: 12px 0 6px 0;
+            border-left: 4px solid #000;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px 20px;
+            margin-bottom: 8px;
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px dotted #ccc;
+            padding: 3px 0;
+        }
+
+        .label { font-weight: bold; width: 45%; }
+        .value { width: 53%; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+            font-size: 12px;
+        }
+
+        table th {
+            background: #000;
+            color: #fff;
+            padding: 5px 8px;
+            text-align: left;
+        }
+
+        table td {
+            padding: 5px 8px;
+            border-bottom: 1px solid #ccc;
+        }
+
+        table tr:nth-child(even) td { background: #f9f9f9; }
+
+        .amount-summary {
+            margin-top: 12px;
+            border: 2px solid #000;
+            padding: 10px;
+        }
+
+        .amount-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            border-bottom: 1px dotted #ccc;
+        }
+
+        .amount-row.total {
+            font-weight: bold;
+            font-size: 14px;
+            border-bottom: none;
+            margin-top: 4px;
+        }
+
+        .footer {
+            margin-top: 30px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .sig-box {
+            text-align: center;
+            width: 30%;
+            border-top: 1px solid #000;
+            padding-top: 6px;
+            font-size: 11px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .status-ACTIVE    { background: #fff3cd; color: #856404; }
+        .status-COMPLETED { background: #d1e7dd; color: #0a3622; }
+        .status-CANCELLED { background: #f8d7da; color: #58151c; }
+
+        @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+            .page { margin: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Print Button -->
+<div class="no-print" style="text-align:center; margin: 10px;">
+    <button onclick="window.print()"
+        style="padding:8px 24px; background:#e94560; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:14px;">
+        &#128424; Print Booking
+    </button>
+    <button onclick="window.history.back()"
+        style="padding:8px 24px; background:#666; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:14px; margin-left:8px;">
+        &larr; Back
+    </button>
+</div>
+
+<div class="page">
+
+    <!-- Header -->
+    <div class="header">
+        <h2>{{ business.company_name }}</h2>
+        {% if business.address %}
+        <p>{{ business.address }}</p>
+        {% endif %}
+        {% if business.city %}
+        <p>{{ business.city }}</p>
+        {% endif %}
+        <p>
+            {% if business.phone %}Phone: {{ business.phone }}{% endif %}
+            {% if business.email %}&nbsp;|&nbsp;Email: {{ business.email }}{% endif %}
+        </p>
+        {% if business.ntn_number or business.strn_number %}
+        <p>
+            {% if business.ntn_number %}NTN: {{ business.ntn_number }}{% endif %}
+            {% if business.strn_number %}&nbsp;|&nbsp;STRN: {{ business.strn_number }}{% endif %}
+        </p>
+        {% endif %}
+    </div>
+
+    <div class="doc-title">Booking Confirmation</div>
+
+    <!-- Booking Info -->
+    <div class="section-title">Booking Details</div>
+    <div class="grid">
+        <div class="row">
+            <span class="label">Booking No:</span>
+            <span class="value">{{ booking.booking_no }}</span>
+        </div>
+        <div class="row">
+            <span class="label">Booking Date:</span>
+            <span class="value">{{ booking.booking_date }}</span>
+        </div>
+        <div class="row">
+            <span class="label">Status:</span>
+            <span class="value">
+                <span class="status-badge status-{{ booking.status }}">
+                    {{ booking.status }}
+                </span>
+            </span>
+        </div>
+        <div class="row">
+            <span class="label">Agent:</span>
+            <span class="value">{{ booking.agent.name|default:"—" }}</span>
+        </div>
+    </div>
+
+    <!-- Customer Info -->
+    <div class="section-title">Customer Details</div>
+    <div class="grid">
+        <div class="row">
+            <span class="label">Name:</span>
+            <span class="value">{{ booking.customer.name }}</span>
+        </div>
+        <div class="row">
+            <span class="label">CNIC:</span>
+            <span class="value">{{ booking.customer.cnic }}</span>
+        </div>
+        <div class="row">
+            <span class="label">Phone:</span>
+            <span class="value">{{ booking.customer.phone }}</span>
+        </div>
+        <div class="row">
+            <span class="label">City:</span>
+            <span class="value">{{ booking.customer.city }}</span>
+        </div>
+        <div class="row" style="grid-column: span 2;">
+            <span class="label">Address:</span>
+            <span class="value">{{ booking.customer.address }}</span>
+        </div>
+    </div>
+
+    <!-- Plot Info -->
+    <div class="section-title">Plot Details</div>
+    <div class="grid">
+        <div class="row">
+            <span class="label">Town:</span>
+            <span class="value">{{ booking.plot.block.town.name }}</span>
+        </div>
+        <div class="row">
+            <span class="label">Block:</span>
+            <span class="value">{{ booking.plot.block.name }}</span>
+        </div>
+        <div class="row">
+            <span class="label">Plot No:</span>
+            <span class="value">{{ booking.plot.plot_no }}</span>
+        </div>
+        <div class="row">
+            <span class="label">Size:</span>
+            <span class="value">{{ booking.plot.size }} {{ booking.plot.size_unit }}</span>
+        </div>
+        <div class="row">
+            <span class="label">Type:</span>
+            <span class="value">{{ booking.plot.get_type_display }}</span>
+        </div>
+    </div>
+
+    <!-- Amount Summary -->
+    <div class="section-title">Payment Summary</div>
+    <div class="amount-summary">
+        <div class="amount-row">
+            <span>Total Price</span>
+            <span>Rs. {{ booking.total_price|floatformat:0|intcomma }}</span>
+        </div>
+        <div class="amount-row">
+            <span>Discount</span>
+            <span>Rs. {{ booking.discount|floatformat:0|intcomma }}</span>
+        </div>
+        <div class="amount-row">
+            <span>Net Price</span>
+            <span>Rs. {{ booking.net_price|floatformat:0|intcomma }}</span>
+        </div>
+        <div class="amount-row">
+            <span>Down Payment</span>
+            <span>Rs. {{ booking.down_payment|floatformat:0|intcomma }}</span>
+        </div>
+        <div class="amount-row">
+            <span>Total Received</span>
+            <span>Rs. {{ total_paid|floatformat:0|intcomma }}</span>
+        </div>
+        <div class="amount-row total">
+            <span>Balance Due</span>
+            <span>Rs. {{ balance|floatformat:0|intcomma }}</span>
+        </div>
+    </div>
+
+    <!-- Payment Plan -->
+    {% if installments %}
+    <div class="section-title">Payment Plan</div>
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Due Date</th>
+                <th>Amount</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ins in installments %}
+            <tr>
+                <td>{{ ins.installment_no }}</td>
+                <td>{{ ins.due_date }}</td>
+                <td>Rs. {{ ins.amount|floatformat:0|intcomma }}</td>
+                <td>{{ ins.status }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <!-- Signatures -->
+    <div class="footer">
+        <div class="sig-box">Customer Signature</div>
+        <div class="sig-box">Agent Signature</div>
+        <div class="sig-box">Authorized Signatory</div>
+    </div>
+
+</div>
+</body>
+</html>

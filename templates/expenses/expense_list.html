@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block title %}Expenses — REDS{% endblock %}
+{% block page_title %}Expenses{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+
+        <form method="GET" class="row g-2 mb-3">
+            <div class="col-md-3">
+                <select name="category" class="form-select form-select-sm"
+                        onchange="this.form.submit()">
+                    <option value="">— All Categories —</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.pk }}"
+                        {% if selected_category == cat.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ cat.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <a href="{% url 'expenses:expense_list' %}"
+                   class="btn btn-sm btn-outline-secondary">Clear</a>
+            </div>
+            <div class="col text-end">
+                <a href="{% url 'expenses:category_list' %}"
+                   class="btn btn-sm btn-outline-info me-1">
+                    <i class="bi bi-tags"></i> Categories
+                </a>
+                <a href="{% url 'expenses:expense_add' %}"
+                   class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus-circle"></i> Add Expense
+                </a>
+            </div>
+        </form>
+
+        <table class="table table-hover table-sm align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Date</th>
+                    <th>Title</th>
+                    <th>Category</th>
+                    <th>Paid To</th>
+                    <th>Amount (Rs.)</th>
+                    <th>Mode</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in expenses %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ e.expense_date }}</td>
+                    <td class="fw-semibold">{{ e.title }}</td>
+                    <td>{{ e.category.name|default:"—" }}</td>
+                    <td>{{ e.paid_to|default:"—" }}</td>
+                    <td class="text-danger fw-semibold">{{ e.amount|floatformat:0 }}</td>
+                    <td>
+                        <span class="badge bg-secondary">{{ e.payment_mode }}</span>
+                    </td>
+                    <td>
+                        <a href="{% url 'expenses:expense_edit' e.pk %}"
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <a href="{% url 'expenses:expense_delete' e.pk %}"
+                           class="btn btn-sm btn-outline-danger"
+                           onclick="return confirm('Delete this expense?')">
+                            <i class="bi bi-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        No expenses recorded yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+    </div>
+</div>
+{% endblock %}

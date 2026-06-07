@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload Map — {{ town.name }}{% endblock %}
+
+{% block content %}
+
+<div class="topbar">
+    <div class="page-title">
+        <i class="bi bi-upload"></i> Upload Map — {{ town.name }}
+    </div>
+    <a href="{% url 'development:map_list' town_pk=town.pk %}"
+       class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Maps
+    </a>
+</div>
+
+{% if messages %}
+    {% for msg in messages %}
+        <div class="alert alert-{{ msg.tags }} alert-dismissible fade show">
+            {{ msg }} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="row justify-content-center">
+<div class="col-md-7">
+<div class="card">
+<div class="card-header fw-semibold">
+    <i class="bi bi-map"></i> New Map Details
+</div>
+<div class="card-body">
+
+<form method="post" enctype="multipart/form-data" id="uploadForm">
+{% csrf_token %}
+
+    <!-- Title -->
+    <div class="mb-3">
+        <label class="form-label fw-semibold">
+            Map Title <span class="text-danger">*</span>
+        </label>
+        <input type="text"
+               name="title"
+               class="form-control"
+               placeholder="e.g. Master Plan, Block A Layout, Phase 1 Map"
+               required>
+        <div class="form-text">Give a clear name so users know what this map shows.</div>
+    </div>
+
+    <!-- Map Type -->
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Map Type <span class="text-danger">*</span></label>
+        <div class="d-flex gap-3">
+            <div class="form-check">
+                <input class="form-check-input" type="radio"
+                       name="map_type" id="typeImage"
+                       value="IMAGE" checked
+                       onchange="updateFileHint()">
+                <label class="form-check-label" for="typeImage">
+                    <i class="bi bi-image text-success"></i> Image (JPG / PNG)
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio"
+                       name="map_type" id="typePDF"
+                       value="PDF"
+                       onchange="updateFileHint()">
+                <label class="form-check-label" for="typePDF">
+                    <i class="bi bi-file-earmark-pdf text-danger"></i> PDF
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Block (optional) -->
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Block (optional)</label>
+        <select name="block" class="form-select">
+            <option value="">— Master Plan (whole town) —</option>
+            {% for block in blocks %}
+                <option value="{{ block.pk }}">{{ block.name }}</option>
+            {% endfor %}
+        </select>
+        <div class="form-text">Leave blank if this is a master plan for the whole town.</div>
+    </div>
+
+    <!-- Display Order -->
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Display Order</label>
+        <input type="number"
+               name="display_order"
+               class="form-control"
+               value="0" min="0" style="width:120px;">
+        <div class="form-text">Lower number shows first. 0 = default.</div>
+    </div>
+
+    <!-- File Upload — Drag and Drop -->
+    <div class="mb-4">
+        <label class="form-label fw-semibold">
+            Map File <span class="text-danger">*</span>
+        </label>
+
+        <div id="dropZone"
+             class="drop-zone border-2 border-dashed rounded-3 p-4 text-center"
+             style="border: 2px dashed #dee2e6; cursor:pointer; transition: all 0.2s;">
+
+            <i class="bi bi-cloud-upload fs-2 text-muted" id="dropIcon"></i>
+            <div class="mt-2 text-muted" id="dropText">
+                Drag & drop your file here or
+                <span class="text-primary fw-semibold">click to browse</span>
+            </div>
+            <div class="small text-muted mt-1" id="fileHint">
+                Accepted: JPG, PNG (max 20MB)
+            </div>
+
+            <input type="file"
+                   name="map_file"
+                   id="mapFileInput"
+                   accept=".jpg,.jpeg,.png,.pdf"
+                   required
+                   style="position:absolute; opacity:0; width:100%; height:100%;
+                          top:0; left:0; cursor:pointer;">
+        </div>
+
+        <!-- Image Preview -->
+        <div id="previewBox" class="mt-3" style="display:none;">
+            <img id="previewImg"
+                 src=""
+                 alt="Preview"
+                 class="img-fluid rounded shadow-sm"
+                 style="max-height:300px;">
+            <div id="previewName" class="small text-muted mt-1"></div>
+        </div>
+
+        <!-- PDF Selected State -->
+        <div id="pdfBox" class="mt-3 p-3 bg-light rounded" style="display:none;">
+            <i class="bi bi-file-earmark-pdf-fill text-danger fs-3"></i>
+            <span id="pdfName" class="ms-2 fw-semibold"></span>
+        </div>
+
+    </div>
+
+    <!-- Submit -->
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary px-4">
+            <i class="bi bi-upload"></i> Upload Map
+        </button>
+        <a href="{% url 'development:map_list' town_pk=town.pk %}"
+           class="btn btn-outline-secondary px-4">
+            Cancel
+        </a>
+    </div>
+
+</form>
+</div>
+</div>
+</div>
+</div>
+
+<script>
+// ── Drop zone styling ──────────────────────────────────
+const dropZone     = document.getElementById('dropZone');
+const fileInput    = document.getElementById('mapFileInput');
+const previewBox   = document.getElementById('previewBox');
+const previewImg   = document.getElementById('previewImg');
+const previewName  = document.getElementById('previewName');
+const pdfBox       = document.getElementById('pdfBox');
+const pdfName      = document.getElementById('pdfName');
+
+// Click on drop zone triggers file input
+dropZone.addEventListener('click', () => fileInput.click());
+
+// Drag over styling
+dropZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropZone.style.borderColor   = '#e94560';
+    dropZone.style.background    = '#fff0f3';
+});
+
+dropZone.addEventListener('dragleave', () => {
+    dropZone.style.borderColor = '#dee2e6';
+    dropZone.style.background  = '';
+});
+
+// Drop file
+dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.style.borderColor = '#dee2e6';
+    dropZone.style.background  = '';
+    if (e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        handleFileSelected(e.dataTransfer.files[0]);
+    }
+});
+
+// File input change
+fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) {
+        handleFileSelected(fileInput.files[0]);
+    }
+});
+
+// Handle selected file — show preview
+function handleFileSelected(file) {
+    const isPDF = file.name.toLowerCase().endsWith('.pdf');
+
+    if (isPDF) {
+        previewBox.style.display = 'none';
+        pdfBox.style.display     = 'block';
+        pdfName.textContent      = file.name;
+    } else {
+        pdfBox.style.display     = 'none';
+        previewBox.style.display = 'block';
+        previewName.textContent  = file.name;
+        const reader = new FileReader();
+        reader.onload = e => { previewImg.src = e.target.result; };
+        reader.readAsDataURL(file);
+    }
+
+    // Update drop zone text
+    document.getElementById('dropText').textContent  = '✓ File selected — ready to upload';
+    document.getElementById('dropIcon').className    = 'bi bi-check-circle-fill fs-2 text-success';
+}
+
+// Update file hint based on type selection
+function updateFileHint() {
+    const isPDF = document.getElementById('typePDF').checked;
+    document.getElementById('fileHint').textContent = isPDF
+        ? 'Accepted: PDF only (max 20MB)'
+        : 'Accepted: JPG, PNG (max 20MB)';
+    fileInput.accept = isPDF ? '.pdf' : '.jpg,.jpeg,.png';
+
+    // Reset preview
+    previewBox.style.display = 'none';
+    pdfBox.style.display     = 'none';
+    fileInput.value          = '';
+    document.getElementById('dropText').innerHTML =
+        'Drag & drop your file here or <span class="text-primary fw-semibold">click to browse</span>';
+    document.getElementById('dropIcon').className = 'bi bi-cloud-upload fs-2 text-muted';
+}
+</script>
+
+{% endblock %}

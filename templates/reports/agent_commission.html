@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Agent Commission Report{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0"><i class="bi bi-person-badge"></i> Agent Commission Report</h4>
+</div>
+
+<!-- Filter -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Agent</label>
+                <select name="agent" class="form-select">
+                    <option value="">All Agents</option>
+                    {% for a in agents %}
+                    <option value="{{ a.pk }}" {% if sel_agent == a.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ a.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Date From</label>
+                <input type="date" name="date_from" value="{{ date_from }}" class="form-control">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Date To</label>
+                <input type="date" name="date_to" value="{{ date_to }}" class="form-control">
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <div class="text-muted small">Total Commission</div>
+                <div class="fs-5 fw-bold text-primary">Rs. {{ total_commission|intcomma }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <div class="text-muted small">Total Paid</div>
+                <div class="fs-5 fw-bold text-success">Rs. {{ total_paid|intcomma }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <div class="text-muted small">Total Pending</div>
+                <div class="fs-5 fw-bold text-warning">Rs. {{ total_pending|intcomma }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Commission Table -->
+<div class="card">
+    <div class="card-header fw-bold">Commission Details</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Agent</th>
+                        <th>Booking No</th>
+                        <th>Booking Date</th>
+                        <th>Customer</th>
+                        <th>Plot</th>
+                        <th>Commission</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in commissions %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ c.agent.name }}</td>
+                        <td>
+                            <a href="{% url 'sales:booking_detail' c.booking.pk %}">
+                                {{ c.booking.booking_no }}
+                            </a>
+                        </td>
+                        <td>{{ c.booking.booking_date }}</td>
+                        <td>{{ c.booking.customer.name }}</td>
+                        <td>{{ c.booking.plot.plot_no }} — {{ c.booking.plot.block.name }}</td>
+                        <td>Rs. {{ c.commission_amount|intcomma }}</td>
+                        <td>
+                            {% if c.status == 'PAID' %}
+                                <span class="badge bg-success">Paid</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">Pending</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">No commission records found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

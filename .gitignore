@@ -1,0 +1,24 @@
+# Virtual environment
+venv/
+env/
+
+# VS Code
+.vscode/
+
+# Django / Flask
+db.sqlite3
+*.log
+
+# Cache
+__pycache__/
+*.pyc
+
+# Static build files
+staticfiles/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Zip files
+*.zip
