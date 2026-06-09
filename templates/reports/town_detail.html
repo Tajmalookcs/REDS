@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ town.name }} — Town Detail{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="mb-0 fw-bold">
+            <i class="bi bi-building me-2 text-danger"></i>{{ town.name }}
+        </h4>
+        {% if town.location %}
+        <small class="text-muted">
+            <i class="bi bi-geo-alt"></i> {{ town.location }}
+        </small>
+        {% endif %}
+    </div>
+    <div class="d-flex gap-2">
+        <button onclick="window.print()" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-printer"></i> Print
+        </button>
+        <a href="{% url 'dashboard' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+    </div>
+</div>
+
+<!-- Town Images -->
+{% if town_images %}
+<div class="row g-2 mb-4">
+    {% for img in town_images %}
+    <div class="col-md-{% if town_images.count == 1 %}12{% else %}6{% endif %}">
+        <div style="height:280px; border-radius:12px; overflow:hidden; box-shadow:0 4px 15px #0002;">
+            <img src="{{ img.map_file.url }}"
+                 alt="{{ img.title }}"
+                 style="width:100%; height:100%; object-fit:cover;">
+        </div>
+        <div class="text-center text-muted small mt-1">{{ img.title }}</div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="mb-4"
+     style="height:200px; border-radius:12px;
+            background:linear-gradient(135deg,#1a1a2e,#e94560);
+            display:flex; align-items:center; justify-content:center;">
+    <div class="text-center text-white">
+        <i class="bi bi-buildings" style="font-size:4rem; opacity:0.4;"></i>
+        <div class="mt-2 opacity-50">No map image uploaded</div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Plot Summary KPI Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-2">
+        <div class="card text-center border-0 shadow-sm h-100"
+             style="border-radius:10px; background:#f0f4ff;">
+            <div class="card-body py-3">
+                <div class="fs-3 fw-bold text-primary">{{ total_plots }}</div>
+                <div class="small text-muted">Total Plots</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-2">
+        <div class="card text-center border-0 shadow-sm h-100"
+             style="border-radius:10px; background:#fff0f3;">
+            <div class="card-body py-3">
+                <div class="fs-3 fw-bold text-danger">{{ sold_plots }}</div>
+                <div class="small text-muted">Sold</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-2">
+        <div class="card text-center border-0 shadow-sm h-100"
+             style="border-radius:10px; background:#fffbf0;">
+            <div class="card-body py-3">
+                <div class="fs-3 fw-bold text-warning">{{ booked_plots }}</div>
+                <div class="small text-muted">Booked</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-2">
+        <div class="card text-center border-0 shadow-sm h-100"
+             style="border-radius:10px; background:#f0fff4;">
+            <div class="card-body py-3">
+                <div class="fs-3 fw-bold text-success">{{ available_plots }}</div>
+                <div class="small text-muted">Available</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-2">
+        <div class="card text-center border-0 shadow-sm h-100"
+             style="border-radius:10px; background:#f5f5f5;">
+            <div class="card-body py-3">
+                <div class="fs-3 fw-bold text-secondary">{{ hold_plots }}</div>
+                <div class="small text-muted">On Hold</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-2">
+        <div class="card text-center border-0 shadow-sm h-100"
+             style="border-radius:10px; background:#f0f0ff;">
+            <div class="card-body py-3">
+                <div class="fs-5 fw-bold text-primary">{{ blocks_data|length }}</div>
+                <div class="small text-muted">Blocks</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Financial Summary -->
+<div class="card mb-4 border-0 shadow-sm" style="border-radius:12px;">
+    <div class="card-header fw-bold border-0"
+         style="background:#1a1a2e; color:#fff; border-radius:12px 12px 0 0;">
+        <i class="bi bi-cash-coin me-2"></i> Financial Summary
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <div class="p-3 rounded text-center"
+                     style="background:#f0fff4; border:1px solid #c3e6cb;">
+                    <div class="text-muted small mb-1">
+                        <i class="bi bi-currency-exchange"></i> Total Booked Value
+                    </div>
+                    <div class="fs-5 fw-bold text-success">
+                        Rs. {{ total_booked_value|intcomma }}
+                    </div>
+                    <div class="text-muted" style="font-size:0.7rem;">
+                        (Sold + Booked plots)
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-3 rounded text-center"
+                     style="background:#f0f4ff; border:1px solid #b8d4f8;">
+                    <div class="text-muted small mb-1">
+                        <i class="bi bi-arrow-down-circle"></i> Amount Received
+                    </div>
+                    <div class="fs-5 fw-bold text-primary">
+                        Rs. {{ total_received|intcomma }}
+                    </div>
+                    <div class="text-muted" style="font-size:0.7rem;">
+                        (Cash collected)
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-3 rounded text-center"
+                     style="background:#fff0f3; border:1px solid #f5c6cb;">
+                    <div class="text-muted small mb-1">
+                        <i class="bi bi-hourglass-split"></i> Balance Receivable
+                    </div>
+                    <div class="fs-5 fw-bold text-danger">
+                        Rs. {{ balance_receivable|intcomma }}
+                    </div>
+                    <div class="text-muted" style="font-size:0.7rem;">
+                        (Yet to collect)
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-3 rounded text-center"
+                     style="background:#fffbf0; border:1px solid #ffeeba;">
+                    <div class="text-muted small mb-1">
+                        <i class="bi bi-grid-3x3"></i> Unsold Plot Value
+                    </div>
+                    <div class="fs-5 fw-bold text-warning">
+                        Rs. {{ unsold_plot_value|intcomma }}
+                    </div>
+                    <div class="text-muted" style="font-size:0.7rem;">
+                        (Available + Hold)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Progress Bar -->
+{% if total_plots > 0 %}
+<div class="card mb-4 border-0 shadow-sm" style="border-radius:12px;">
+    <div class="card-body">
+        <div class="d-flex justify-content-between mb-2">
+            <span class="fw-semibold">Overall Sale Progress</span>
+            <span class="text-muted small">
+                {{ sold_plots }} Sold + {{ booked_plots }} Booked
+                out of {{ total_plots }} plots
+            </span>
+        </div>
+        <div class="progress" style="height:18px; border-radius:10px;">
+            <div class="progress-bar bg-danger fw-semibold"
+                 style="width:{% widthratio sold_plots total_plots 100 %}%"
+                 title="Sold: {{ sold_plots }}">
+                {% if sold_plots > 0 %}Sold {{ sold_plots }}{% endif %}
+            </div>
+            <div class="progress-bar bg-warning fw-semibold"
+                 style="width:{% widthratio booked_plots total_plots 100 %}%"
+                 title="Booked: {{ booked_plots }}">
+                {% if booked_plots > 0 %}Booked {{ booked_plots }}{% endif %}
+            </div>
+            <div class="progress-bar bg-success fw-semibold"
+                 style="width:{% widthratio available_plots total_plots 100 %}%"
+                 title="Available: {{ available_plots }}">
+                {% if available_plots > 0 %}Avail {{ available_plots }}{% endif %}
+            </div>
+        </div>
+        <div class="d-flex gap-3 mt-2" style="font-size:0.75rem;">
+            <span><span class="badge bg-danger">■</span> Sold</span>
+            <span><span class="badge bg-warning text-dark">■</span> Booked</span>
+            <span><span class="badge bg-success">■</span> Available</span>
+            <span><span class="badge bg-secondary">■</span> Hold</span>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Blocks Detail Table -->
+<div class="card border-0 shadow-sm" style="border-radius:12px;">
+    <div class="card-header fw-bold border-0"
+         style="background:#1a1a2e; color:#fff; border-radius:12px 12px 0 0;">
+        <i class="bi bi-grid me-2"></i> Block-wise Breakdown
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead style="background:#f8f9fa;">
+                    <tr>
+                        <th class="ps-3">#</th>
+                        <th>Block Name</th>
+                        <th class="text-center">Total Plots</th>
+                        <th class="text-center">
+                            <span class="badge bg-danger">Sold</span>
+                        </th>
+                        <th class="text-center">
+                            <span class="badge bg-warning text-dark">Booked</span>
+                        </th>
+                        <th class="text-center">
+                            <span class="badge bg-success">Available</span>
+                        </th>
+                        <th class="text-center">
+                            <span class="badge bg-secondary">Hold</span>
+                        </th>
+                        <th class="text-center">Progress</th>
+                        <th class="text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in blocks_data %}
+                    <tr>
+                        <td class="ps-3">{{ forloop.counter }}</td>
+                        <td class="fw-semibold">
+                            <i class="bi bi-grid-3x3 text-muted me-1"></i>
+                            Block {{ b.block.name }}
+                            {% if b.block.name_urdu %}
+                            <small class="text-muted ms-1"
+                                   dir="rtl"
+                                   style="font-family:'Jameel Noori Nastaleeq',serif;">
+                                {{ b.block.name_urdu }}
+                            </small>
+                            {% endif %}
+                        </td>
+                        <td class="text-center fw-bold">{{ b.total }}</td>
+                        <td class="text-center">
+                            <span class="fw-bold text-danger">{{ b.sold }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="fw-bold text-warning">{{ b.booked }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="fw-bold text-success">{{ b.available }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="fw-bold text-secondary">{{ b.hold }}</span>
+                        </td>
+                        <td style="min-width:120px;">
+                            {% if b.total > 0 %}
+                            <div class="progress" style="height:8px; border-radius:6px;">
+                                <div class="progress-bar bg-danger"
+                                     style="width:{% widthratio b.sold b.total 100 %}%">
+                                </div>
+                                <div class="progress-bar bg-warning"
+                                     style="width:{% widthratio b.booked b.total 100 %}%">
+                                </div>
+                                <div class="progress-bar bg-success"
+                                     style="width:{% widthratio b.available b.total 100 %}%">
+                                </div>
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'development:plot_list' %}?block={{ b.block.pk }}"
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i> Plots
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9"
+                            class="text-center text-muted py-4">
+                            No blocks found for this town.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+                <!-- Totals Row -->
+                {% if blocks_data %}
+                <tfoot style="background:#1a1a2e; color:#fff;">
+                    <tr class="fw-bold">
+                        <td colspan="2" class="ps-3 py-2">TOTAL</td>
+                        <td class="text-center">{{ total_plots }}</td>
+                        <td class="text-center text-danger">{{ sold_plots }}</td>
+                        <td class="text-center text-warning">{{ booked_plots }}</td>
+                        <td class="text-center text-success">{{ available_plots }}</td>
+                        <td class="text-center text-secondary">{{ hold_plots }}</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Print styles -->
+<style>
+@media print {
+    .btn, .no-print { display: none !important; }
+    .card { box-shadow: none !important; border: 1px solid #ddd !important; }
+}
+</style>
+
+{% endblock %}
+    

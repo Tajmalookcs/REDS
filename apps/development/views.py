@@ -19,6 +19,7 @@ def town_list(request):
 
 
 @login_required
+@login_required
 def town_add(request):
     from apps.land.models import LandContract
     contracts = LandContract.objects.filter(
@@ -42,7 +43,7 @@ def town_add(request):
                     'title':     'Add Town',
                 })
 
-        Town.objects.create(
+        town = Town.objects.create(
             name          = request.POST.get('name'),
             name_urdu     = request.POST.get('name_urdu', ''),
             land_contract = land_contract,
@@ -51,6 +52,21 @@ def town_add(request):
             description   = request.POST.get('description', ''),
             created_by    = request.user,
         )
+
+        # ── Handle town image upload ──────────────────
+        town_image = request.FILES.get('town_image')
+        if town_image:
+            from apps.development.models import TownMap
+            TownMap.objects.create(
+                town          = town,
+                title         = f"{town.name} — Main Image",
+                map_type      = 'IMAGE',
+                map_file      = town_image,
+                display_order = 0,
+                is_active     = True,
+                created_by    = request.user,
+            )
+
         messages.success(request, 'Town added successfully.')
         return redirect('development:town_list')
 
@@ -61,6 +77,7 @@ def town_add(request):
 
 
 @login_required
+@login_required
 def town_edit(request, pk):
     from apps.land.models import LandContract
     town      = get_object_or_404(Town, pk=pk, is_deleted=False)
@@ -68,6 +85,12 @@ def town_edit(request, pk):
         is_deleted=False,
         status='ACTIVE',
     ).select_related('landlord')
+
+    # Get existing main image
+    existing_image = town.maps.filter(
+        map_type='IMAGE',
+        is_active=True
+    ).first()
 
     if request.method == 'POST':
         contract_pk   = request.POST.get('land_contract')
@@ -81,9 +104,10 @@ def town_edit(request, pk):
             if not land_contract:
                 messages.error(request, 'Selected land contract is invalid.')
                 return render(request, 'development/town_form.html', {
-                    'town':      town,
-                    'contracts': contracts,
-                    'title':     'Edit Town',
+                    'town':           town,
+                    'contracts':      contracts,
+                    'existing_image': existing_image,
+                    'title':          'Edit Town',
                 })
 
         town.name          = request.POST.get('name')
@@ -93,13 +117,35 @@ def town_edit(request, pk):
         town.total_area    = request.POST.get('total_area') or None
         town.description   = request.POST.get('description', '')
         town.save()
+
+        # ── Handle town image upload ──────────────────
+        town_image = request.FILES.get('town_image')
+        if town_image:
+            from apps.development.models import TownMap
+            if existing_image:
+                # Replace existing image
+                existing_image.map_file = town_image
+                existing_image.save()
+            else:
+                # Create new
+                TownMap.objects.create(
+                    town          = town,
+                    title         = f"{town.name} — Main Image",
+                    map_type      = 'IMAGE',
+                    map_file      = town_image,
+                    display_order = 0,
+                    is_active     = True,
+                    created_by    = request.user,
+                )
+
         messages.success(request, 'Town updated.')
         return redirect('development:town_list')
 
     return render(request, 'development/town_form.html', {
-        'town':      town,
-        'contracts': contracts,
-        'title':     'Edit Town',
+        'town':           town,
+        'contracts':      contracts,
+        'existing_image': existing_image,
+        'title':          'Edit Town',
     })
 
 
@@ -578,4 +624,51 @@ def map_pdf_viewer(request, pk):
         return redirect('development:map_viewer', pk=pk)
     return render(request, 'development/map_pdf_viewer.html', {
         'town_map': town_map,
+    })
+
+@login_required
+def plot_bulk_add(request):
+    blocks = Block.objects.filter(
+        is_deleted=False
+    ).select_related('town').order_by('town__name', 'name')
+
+    if request.method == 'POST':
+        import json
+        plots_data = request.POST.get('plots_json', '[]')
+        try:
+            plots_list = json.loads(plots_data)
+        except Exception:
+            messages.error(request, 'Invalid data submitted.')
+            return redirect('development:plot_bulk_add')
+
+        created = 0
+        errors = []
+        for i, p in enumerate(plots_list):
+            try:
+                block = Block.objects.get(pk=p['block'])
+                Plot.objects.create(
+                    block      = block,
+                    plot_no    = p['plot_no'],
+                    size       = p['size'],
+                    size_unit  = p.get('size_unit', 'MARLA'),
+                    plot_type  = p.get('plot_type', 'RESIDENTIAL'),
+                    price      = p['price'],
+                    status     = p.get('status', 'AVAILABLE'),
+                    notes      = p.get('notes', ''),
+                    created_by = request.user,
+                )
+                created += 1
+            except Exception as e:
+                errors.append(f"Row {i+1} ({p.get('plot_no','?')}): {str(e)}")
+
+        if errors:
+            for err in errors:
+                messages.error(request, err)
+        if created:
+            messages.success(request, f'{created} plot(s) saved successfully.')
+        return redirect('development:plot_list')
+
+    return render(request, 'development/plot_bulk_add.html', {
+        'blocks': blocks,
+        'title':  'Bulk Add Plots',
     })

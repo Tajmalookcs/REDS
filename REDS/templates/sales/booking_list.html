@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block title %}Bookings — REDS{% endblock %}
+{% block page_title %}Bookings{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+
+        <!-- Filter + Add -->
+        <form method="GET" class="row g-2 mb-3">
+            <div class="col-md-3">
+                <select name="status" class="form-select form-select-sm"
+                        onchange="this.form.submit()">
+                    <option value="">— All Status —</option>
+                    {% for val, label in status_choices %}
+                    <option value="{{ val }}"
+                        {% if selected_status == val %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <a href="{% url 'sales:booking_list' %}"
+                   class="btn btn-sm btn-outline-secondary">Clear</a>
+            </div>
+            <div class="col text-end">
+                <a href="{% url 'sales:booking_add' %}" class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus-circle"></i> New Booking
+                </a>
+            </div>
+        </form>
+
+        <table class="table table-hover table-sm align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Customer</th>
+                    <th>Plot</th>
+                    <th>Town / Block</th>
+                    <th>Booking Date</th>
+                    <th>Net Price</th>
+                    <th>Paid</th>
+                    <th>Balance</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in bookings %}
+                <tr>
+                    <td>{{ b.pk }}</td>
+                    <td class="fw-semibold">{{ b.customer.name }}</td>
+                    <td>{{ b.plot.plot_no }}</td>
+                    <td>{{ b.plot.block.town.name }} / {{ b.plot.block.name }}</td>
+                    <td>{{ b.booking_date }}</td>
+                    <td>{{ b.net_price|floatformat:0 }}</td>
+                    <td class="text-success fw-semibold">{{ b.total_paid|floatformat:0 }}</td>
+                    <td class="text-danger fw-semibold">{{ b.balance|floatformat:0 }}</td>
+                    <td>
+                        <span class="badge
+                            {% if b.status == 'ACTIVE' %}bg-primary
+                            {% elif b.status == 'COMPLETED' %}bg-success
+                            {% else %}bg-danger{% endif %}">
+                            {{ b.status }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'sales:booking_detail' b.pk %}"
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        <a href="{% url 'sales:booking_edit' b.pk %}"
+                           class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        {% if b.status == 'ACTIVE' %}
+                        <a href="{% url 'sales:booking_cancel' b.pk %}"
+                           class="btn btn-sm btn-outline-warning">
+                            <i class="bi bi-x-circle"></i>
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10" class="text-center text-muted py-4">
+                        No bookings yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+    </div>
+</div>
+{% endblock %}

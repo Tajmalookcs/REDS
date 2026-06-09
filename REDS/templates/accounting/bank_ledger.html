@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Bank Ledger{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0"><i class="bi bi-bank"></i> Bank Ledger</h4>
+</div>
+
+<!-- Filter -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">Bank Account</label>
+                <select name="bank" class="form-select">
+                    <option value="">— Select Bank Account —</option>
+                    {% for b in banks %}
+                    <option value="{{ b.pk }}" {% if sel_bank == b.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ b.title }} — {{ b.bank_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Date From</label>
+                <input type="date" name="date_from" value="{{ date_from }}" class="form-control">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Date To</label>
+                <input type="date" name="date_to" value="{{ date_to }}" class="form-control">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Show
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if bank %}
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card border-secondary">
+            <div class="card-body text-center">
+                <div class="text-muted small">Bank Account</div>
+                <div class="fs-6 fw-bold">{{ bank.title }}</div>
+                <div class="text-muted small">{{ bank.bank_name }} — {{ bank.account_no }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <div class="text-muted small">Total Debit (In)</div>
+                <div class="fs-5 fw-bold text-success">Rs. {{ total_debit|intcomma }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-danger">
+            <div class="card-body text-center">
+                <div class="text-muted small">Total Credit (Out)</div>
+                <div class="fs-5 fw-bold text-danger">Rs. {{ total_credit|intcomma }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <div class="text-muted small">Balance</div>
+                <div class="fs-5 fw-bold text-primary">Rs. {{ balance|intcomma }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ledger Table -->
+<div class="card">
+    <div class="card-header fw-bold">Bank Transactions</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Date</th>
+                        <th>Reference</th>
+                        <th>Narration</th>
+                        <th>Debit (In)</th>
+                        <th>Credit (Out)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in lines %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ line.journal.entry_date }}</td>
+                        <td>
+                            <a href="{% url 'accounting:journal_detail' line.journal.pk %}">
+                                {{ line.journal.reference|default:"—" }}
+                            </a>
+                        </td>
+                        <td>{{ line.journal.narration|default:line.narration }}</td>
+                        <td>
+                            {% if line.debit %}
+                                <span class="text-success fw-bold">Rs. {{ line.debit|intcomma }}</span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>
+                            {% if line.credit %}
+                                <span class="text-danger fw-bold">Rs. {{ line.credit|intcomma }}</span>
+                            {% else %}—{% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">No bank transactions found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if lines %}
+                <tfoot class="table-secondary fw-bold">
+                    <tr>
+                        <td colspan="4" class="text-end">Total</td>
+                        <td class="text-success">Rs. {{ total_debit|intcomma }}</td>
+                        <td class="text-danger">Rs. {{ total_credit|intcomma }}</td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}

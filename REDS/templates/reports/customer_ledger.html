@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Customer Ledger{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0"><i class="bi bi-person-lines-fill"></i> Customer Ledger</h4>
+    {% if customer %}
+    <button onclick="window.print()" class="btn btn-outline-primary btn-sm no-print">
+        <i class="bi bi-printer"></i> Print Ledger
+    </button>
+    {% endif %}
+</div>
+
+<!-- Customer Select -->
+<div class="card mb-4 no-print">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-9">
+                <label class="form-label">Select Customer</label>
+                <select name="customer" class="form-select">
+                    <option value="">— Select Customer —</option>
+                    {% for c in customers %}
+                    <option value="{{ c.pk }}" {% if sel_customer == c.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ c.name }} — {{ c.phone }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Show Ledger
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if customer %}
+
+<!-- Customer Info -->
+<div class="card mb-4 print-section">
+    <div class="card-header fw-bold bg-light">
+        <i class="bi bi-person-check"></i> Customer Information
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4"><strong>Name:</strong> {{ customer.name }}</div>
+            <div class="col-md-4"><strong>CNIC:</strong> {{ customer.cnic }}</div>
+            <div class="col-md-4"><strong>Phone:</strong> {{ customer.phone }}</div>
+            <div class="col-md-4 mt-2"><strong>City:</strong> {{ customer.city }}</div>
+            <div class="col-md-8 mt-2"><strong>Address:</strong> {{ customer.address }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Balance Summary -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <div class="text-muted small">Total Sale Value</div>
+                <div class="fs-5 fw-bold text-primary">Rs. {{ total_price|intcomma }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <div class="text-muted small">Total Paid</div>
+                <div class="fs-5 fw-bold text-success">Rs. {{ total_paid|intcomma }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-danger">
+            <div class="card-body text-center">
+                <div class="text-muted small">Balance Due</div>
+                <div class="fs-5 fw-bold text-danger">Rs. {{ balance|intcomma }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bookings -->
+<div class="card mb-4">
+    <div class="card-header fw-bold">Bookings</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Booking No</th>
+                        <th>Date</th>
+                        <th>Plot</th>
+                        <th>Net Price</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in bookings %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>
+                            <a href="{% url 'sales:booking_detail' b.pk %}">{{ b.booking_no }}</a>
+                        </td>
+                        <td>{{ b.booking_date }}</td>
+                        <td>{{ b.plot.plot_no }} — {{ b.plot.block.name }} — {{ b.plot.block.town.name }}</td>
+                        <td>Rs. {{ b.net_price|intcomma }}</td>
+                        <td>
+                            {% if b.status == 'ACTIVE' %}
+                                <span class="badge bg-warning text-dark">Active</span>
+                            {% elif b.status == 'COMPLETED' %}
+                                <span class="badge bg-success">Completed</span>
+                            {% elif b.status == 'CANCELLED' %}
+                                <span class="badge bg-danger">Cancelled</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-3">No bookings found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Receipt Transactions -->
+<div class="card">
+    <div class="card-header fw-bold">Payment Transactions</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Receipt No</th>
+                        <th>Date</th>
+                        <th>Booking</th>
+                        <th>Payment Mode</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in receipts %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ r.receipt_no }}</td>
+                        <td>{{ r.date }}</td>
+                        <td>{{ r.booking.booking_no }}</td>
+                        <td>{{ r.get_payment_mode_display }}</td>
+                        <td>Rs. {{ r.amount|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-3">No receipts found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Ledger Summary for Print -->
+<div class="card mt-4 print-section">
+    <div class="card-header fw-bold bg-primary text-white">
+        <i class="bi bi-receipt"></i> Ledger Summary
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-12">
+                <table class="table table-borderless">
+                    <tr>
+                        <td style="width: 50%; padding: 10px;"><strong>Total Sale Value:</strong></td>
+                        <td style="width: 50%; text-align: right; padding: 10px; font-size: 18px;"><strong>Rs. {{ total_price|intcomma }}</strong></td>
+                    </tr>
+                    <tr style="background-color: #f8f9fa;">
+                        <td style="padding: 10px;"><strong>Total Paid:</strong></td>
+                        <td style="text-align: right; padding: 10px; font-size: 18px;"><strong class="text-success">Rs. {{ total_paid|intcomma }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px;"><strong>Balance Due:</strong></td>
+                        <td style="text-align: right; padding: 10px; font-size: 20px;"><strong class="text-danger">Rs. {{ balance|intcomma }}</strong></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Status -->
+<div class="card mt-2 mb-4 print-section">
+    <div class="card-body text-center">
+        {% if balance == 0 %}
+        <div class="alert alert-success mb-0">
+            <i class="bi bi-check-circle"></i> <strong>PAID IN FULL</strong>
+        </div>
+        {% else %}
+        <div class="alert alert-warning mb-0">
+            <i class="bi bi-exclamation-circle"></i> <strong>OUTSTANDING BALANCE: Rs. {{ balance|intcomma }}</strong>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="text-center text-muted small mt-4 print-section">
+    <p>Generated on: {{ "now"|date:"d-M-Y H:i" }}</p>
+</div>
+
+{% endif %}
+
+<!-- Print Styles -->
+<style>
+    .no-print {
+        /* Screen only - no print */
+    }
+    
+    @media print {
+        /* Hide non-print elements */
+        .no-print,
+        .btn {
+            display: none !important;
+        }
+        
+        /* Print section styling */
+        .print-section {
+            page-break-inside: avoid;
+        }
+        
+        /* Better table styling for print */
+        .table {
+            border: 1px solid #333;
+        }
+        
+        .table th {
+            background-color: #333 !important;
+            color: white !important;
+            padding: 10px !important;
+            font-weight: bold;
+        }
+        
+        .table td {
+            padding: 8px !important;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .table tbody tr:nth-child(odd) {
+            background-color: #f9f9f9;
+        }
+        
+        .card {
+            border: 1px solid #333 !important;
+            margin-bottom: 15px !important;
+            page-break-inside: avoid;
+        }
+        
+        .card-header {
+            background-color: #333 !important;
+            color: white !important;
+            font-weight: bold;
+            border-bottom: 1px solid #333 !important;
+        }
+        
+        .badge {
+            border: 1px solid #333;
+            padding: 3px 8px;
+        }
+        
+        .text-success {
+            color: #28a745 !important;
+        }
+        
+        .text-danger {
+            color: #dc3545 !important;
+        }
+        
+        .text-primary {
+            color: #007bff !important;
+        }
+        
+        .alert-success {
+            border: 2px solid #28a745 !important;
+            background-color: #d4edda !important;
+            color: #155724 !important;
+        }
+        
+        .alert-warning {
+            border: 2px solid #ffc107 !important;
+            background-color: #fff3cd !important;
+            color: #856404 !important;
+        }
+        
+        /* Header styling */
+        h4 {
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+        
+        /* Remove extra spacing for print */
+        body {
+            margin: 0;
+            padding: 10px;
+        }
+        
+        /* Print title */
+        .print-title {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            page-break-after: avoid;
+        }
+    }
+    
+    @media screen {
+        .print-section {
+            display: block;
+        }
+    }
+</style>
+{% endblock %}

@@ -3,9 +3,9 @@
 {% block page_title %}{{ title }}{% endblock %}
 
 {% block content %}
-<div class="card" style="max-width:650px;">
+<div class="card" style="max-width:700px;">
     <div class="card-body">
-        <form method="POST">
+        <form method="POST" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="row g-3">
 
@@ -34,7 +34,7 @@
                         {% endfor %}
                     </select>
                     {% if contracts|length == 0 %}
-                    <div class="form-text text-muted">No active land contracts are available.</div>
+                    <div class="form-text text-muted">No active land contracts available.</div>
                     {% endif %}
                 </div>
 
@@ -56,6 +56,63 @@
                               rows="2">{{ town.description|default:'' }}</textarea>
                 </div>
 
+                <!-- ── Town Image ─────────────────────── -->
+                <div class="col-12">
+                    <label class="form-label fw-semibold">
+                        Town Image
+                        <span class="text-muted small fw-normal">
+                            (JPG / PNG — shown on dashboard card)
+                        </span>
+                    </label>
+
+                    {% if existing_image %}
+                    <!-- Show current image -->
+                    <div class="mb-2 p-2 border rounded d-flex align-items-center gap-3"
+                         style="background:#f8f9fa;">
+                        <img src="{{ existing_image.map_file.url }}"
+                             alt="Current Image"
+                             style="height:70px; width:110px;
+                                    object-fit:cover; border-radius:6px;">
+                        <div>
+                            <div class="fw-semibold small">Current Image</div>
+                            <div class="text-muted" style="font-size:0.75rem;">
+                                Upload a new image to replace it
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Drop zone -->
+                    <div id="dropZone"
+                         style="border:2px dashed #dee2e6; border-radius:8px;
+                                padding:20px; text-align:center; cursor:pointer;
+                                transition:all 0.2s; position:relative;">
+                        <i class="bi bi-cloud-upload fs-3 text-muted" id="dropIcon"></i>
+                        <div class="text-muted mt-1" id="dropText">
+                            Drag & drop image here or
+                            <span class="text-primary fw-semibold">click to browse</span>
+                        </div>
+                        <div class="text-muted small" id="fileHint">
+                            Accepted: JPG, PNG (max 10MB)
+                        </div>
+                        <input type="file"
+                               name="town_image"
+                               id="townImageInput"
+                               accept=".jpg,.jpeg,.png"
+                               style="position:absolute; opacity:0;
+                                      width:100%; height:100%;
+                                      top:0; left:0; cursor:pointer;">
+                    </div>
+
+                    <!-- Preview -->
+                    <div id="previewBox" style="display:none; margin-top:10px;">
+                        <img id="previewImg" src=""
+                             style="max-height:200px; max-width:100%;
+                                    border-radius:8px; border:1px solid #dee2e6;">
+                        <div id="previewName" class="text-muted small mt-1"></div>
+                    </div>
+                </div>
+
             </div>
 
             <div class="d-flex gap-2 mt-4">
@@ -69,4 +126,53 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const dropZone  = document.getElementById('dropZone');
+const fileInput = document.getElementById('townImageInput');
+const preview   = document.getElementById('previewBox');
+const previewImg= document.getElementById('previewImg');
+const previewNm = document.getElementById('previewName');
+
+dropZone.addEventListener('click', () => fileInput.click());
+
+dropZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropZone.style.borderColor = '#e94560';
+    dropZone.style.background  = '#fff0f3';
+});
+
+dropZone.addEventListener('dragleave', () => {
+    dropZone.style.borderColor = '#dee2e6';
+    dropZone.style.background  = '';
+});
+
+dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.style.borderColor = '#dee2e6';
+    dropZone.style.background  = '';
+    if (e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        showPreview(e.dataTransfer.files[0]);
+    }
+});
+
+fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) showPreview(fileInput.files[0]);
+});
+
+function showPreview(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+        previewImg.src   = e.target.result;
+        previewNm.textContent = file.name;
+        preview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+    document.getElementById('dropIcon').className = 'bi bi-check-circle-fill fs-3 text-success';
+    document.getElementById('dropText').textContent = '✓ Image selected — ready to save';
+}
+</script>
 {% endblock %}

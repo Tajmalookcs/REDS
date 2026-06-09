@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% block title %}Plot Transfer{% endblock %}
+{% block content %}
+<div class="container-fluid px-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0">
+      <i class="bi bi-arrow-left-right me-2 text-primary"></i>Plot Transfer
+    </h4>
+    <a href="{% url 'booking_detail' booking.pk %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+  </div>
+
+  <!-- Booking Summary -->
+  <div class="card mb-4 border-0 shadow-sm">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <div class="text-muted small">Booking No</div>
+          <div class="fw-bold">#{{ booking.pk }}</div>
+        </div>
+        <div class="col-md-3">
+          <div class="text-muted small">Current Owner</div>
+          <div class="fw-bold">{{ booking.customer.name }}</div>
+        </div>
+        <div class="col-md-3">
+          <div class="text-muted small">Plot</div>
+          <div class="fw-bold">
+            {{ booking.plot.plot_no }} — {{ booking.plot.block.name }}
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="text-muted small">Remaining Balance</div>
+          <div class="fw-bold {% if remaining_balance > 0 %}text-danger{% else %}text-success{% endif %}">
+            Rs. {{ remaining_balance|floatformat:0 }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transfer Form -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+
+        <!-- Transfer Type -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Transfer Type <span class="text-danger">*</span></label>
+          <div class="d-flex gap-3">
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="transfer_type"
+                     id="typeSelf" value="SELF" checked
+                     onchange="toggleNewPerson(this.value)">
+              <label class="form-check-label" for="typeSelf">
+                <i class="bi bi-person-check me-1"></i>Self (Same Buyer)
+              </label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="transfer_type"
+                     id="typeNew" value="NEW_PERSON"
+                     onchange="toggleNewPerson(this.value)">
+              <label class="form-check-label" for="typeNew">
+                <i class="bi bi-person-plus me-1"></i>New Person
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- New Person Fields (hidden by default) -->
+        <div id="newPersonFields" class="d-none mb-4">
+          <div class="card bg-light border-0 p-3">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Full Name <span class="text-danger">*</span></label>
+                <input type="text" name="new_name" class="form-control" placeholder="Enter full name">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Contact <span class="text-danger">*</span></label>
+                <input type="text" name="new_contact" class="form-control" placeholder="Phone number">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">CNIC <span class="text-muted small">(optional)</span></label>
+                <input type="text" name="new_cnic" class="form-control" placeholder="00000-0000000-0">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Address <span class="text-muted small">(optional)</span></label>
+                <input type="text" name="new_address" class="form-control" placeholder="Address">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Notes</label>
+          <textarea name="notes" class="form-control" rows="3"
+                    placeholder="Any remarks about this transfer..."></textarea>
+        </div>
+
+        <!-- Confirm Button -->
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary px-4"
+                  onclick="return confirm('Confirm this transfer?')">
+            <i class="bi bi-check-circle me-2"></i>Confirm Transfer
+          </button>
+          <a href="{% url 'booking_detail' booking.pk %}" class="btn btn-outline-secondary px-4">
+            Cancel
+          </a>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleNewPerson(value) {
+    const fields = document.getElementById('newPersonFields');
+    fields.classList.toggle('d-none', value !== 'NEW_PERSON');
+}
+</script>
+{% endblock %}

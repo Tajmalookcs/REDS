@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}User Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0"><i class="bi bi-person-gear"></i> User Management</h4>
+    <a href="{% url 'user_add' %}" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> Add User
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead style="background:#1a1a2e; color:#fff;">
+                    <tr>
+                        <th>#</th>
+                        <th>Username</th>
+                        <th>Full Name</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td class="align-middle">{{ forloop.counter }}</td>
+                        <td class="align-middle">
+                            <i class="bi bi-person-circle text-secondary"></i>
+                            <strong>{{ u.username }}</strong>
+                            {% if u == request.user %}
+                                <span class="badge bg-info ms-1">You</span>
+                            {% endif %}
+                        </td>
+                        <td class="align-middle">{{ u.full_name|default:"—" }}</td>
+                        <td class="align-middle">
+                            {% if u.role == 'SUPERUSER' %}
+                                <span class="badge bg-danger">Superuser</span>
+                            {% else %}
+                                <span class="badge bg-secondary">User</span>
+                            {% endif %}
+                        </td>
+                        <td class="align-middle">
+                            {% if u.is_active %}
+                                <span class="badge bg-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="align-middle">{{ u.created_at|date:"d M Y" }}</td>
+                        <td class="align-middle">
+                            <!-- Edit -->
+                            <a href="{% url 'user_edit' u.pk %}" class="btn btn-sm btn-outline-primary me-1">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a>
+                            <!-- Change Password -->
+                            <a href="{% url 'user_change_password' u.pk %}" class="btn btn-sm btn-outline-warning me-1">
+                                <i class="bi bi-key"></i> Password
+                            </a>
+                            {% if u != request.user %}
+                            <!-- Activate / Deactivate -->
+                            <form method="post" action="{% url 'user_toggle' u.pk %}" class="d-inline me-1"
+                                  onsubmit="return confirm('{% if u.is_active %}Deactivate{% else %}Activate{% endif %} {{ u.username }}?')">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm {% if u.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+                                    {% if u.is_active %}
+                                        <i class="bi bi-person-slash"></i> Deactivate
+                                    {% else %}
+                                        <i class="bi bi-person-check"></i> Activate
+                                    {% endif %}
+                                </button>
+                            </form>
+                            <!-- Delete (non-superusers only) -->
+                            {% if u.role != 'SUPERUSER' %}
+                            <form method="post" action="{% url 'user_delete' u.pk %}" class="d-inline"
+                                  onsubmit="return confirm('Permanently DELETE user {{ u.username }}? This cannot be undone.')">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">No users found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -87,5 +87,9 @@ urlpatterns = [
     path('maps/<int:pk>/pdf-viewer/',
          views.map_pdf_viewer,
          name='map_pdf_viewer'),
+     
+     path('plots/bulk-add/',
+     views.plot_bulk_add,
+     name='plot_bulk_add'),
 
 ]

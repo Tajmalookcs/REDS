@@ -464,3 +464,79 @@ def tax_summary(request):
         'date_to':          date_to,
     }
     return render(request, 'reports/tax_summary.html', context)
+
+# ─────────────────────────────────────────
+# TOWN DETAIL REPORT
+# ─────────────────────────────────────────
+@login_required
+def town_detail(request, town_pk):
+    from apps.development.models import Town, Block, Plot, TownMap
+    from apps.sales.models import Booking, Receipt
+    from django.db.models import Sum
+
+    town   = get_object_or_404(Town, pk=town_pk, is_deleted=False)
+    blocks = Block.objects.filter(town=town, is_deleted=False)
+
+    # All plots of this town
+    town_plots = Plot.objects.filter(block__town=town, is_deleted=False)
+
+    total_plots     = town_plots.count()
+    sold_plots      = town_plots.filter(status='SOLD').count()
+    booked_plots    = town_plots.filter(status='BOOKED').count()
+    available_plots = town_plots.filter(status='AVAILABLE').count()
+    hold_plots      = town_plots.filter(status='HOLD').count()
+
+    # Financial
+    # Total value of ALL plots
+    total_plot_value = town_plots.aggregate(t=Sum('price'))['t'] or 0
+
+    # Total value of sold/booked plots (from bookings)
+    bookings = Booking.objects.filter(
+        plot__block__town=town,
+        is_deleted=False
+    ).exclude(status='CANCELLED')
+
+    total_booked_value   = bookings.aggregate(t=Sum('net_price'))['t'] or 0
+    total_received       = Receipt.objects.filter(
+                               booking__plot__block__town=town,
+                               is_deleted=False
+                           ).aggregate(t=Sum('amount'))['t'] or 0
+    balance_receivable   = total_booked_value - total_received
+
+    # Value of unsold plots
+    unsold_plot_value = town_plots.filter(
+        status__in=['AVAILABLE', 'HOLD']
+    ).aggregate(t=Sum('price'))['t'] or 0
+
+    # Per-block stats
+    blocks_data = []
+    for block in blocks:
+        block_plots = Plot.objects.filter(block=block, is_deleted=False)
+        blocks_data.append({
+            'block':     block,
+            'total':     block_plots.count(),
+            'sold':      block_plots.filter(status='SOLD').count(),
+            'booked':    block_plots.filter(status='BOOKED').count(),
+            'available': block_plots.filter(status='AVAILABLE').count(),
+            'hold':      block_plots.filter(status='HOLD').count(),
+        })
+
+    # Town images
+    town_images = town.maps.filter(map_type='IMAGE', is_active=True)
+
+    context = {
+        'town':               town,
+        'blocks_data':        blocks_data,
+        'total_plots':        total_plots,
+        'sold_plots':         sold_plots,
+        'booked_plots':       booked_plots,
+        'available_plots':    available_plots,
+        'hold_plots':         hold_plots,
+        'total_plot_value':   total_plot_value,
+        'total_booked_value': total_booked_value,
+        'total_received':     total_received,
+        'balance_receivable': balance_receivable,
+        'unsold_plot_value':  unsold_plot_value,
+        'town_images':        town_images,
+    }
+    return render(request, 'reports/town_detail.html', context)

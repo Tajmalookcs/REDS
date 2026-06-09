@@ -11,5 +11,6 @@ urlpatterns = [
     path('cash-bank/', views.cash_bank_position, name='cash_bank_position'),
     path('profit-loss/', views.profit_loss, name='profit_loss'),
     path('tax-summary/', views.tax_summary, name='tax_summary'),
+    path('town/<int:town_pk>/', views.town_detail, name='town_detail'),
 
 ]

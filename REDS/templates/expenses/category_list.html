@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block title %}Expense Categories — REDS{% endblock %}
+{% block page_title %}Expense Categories{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="mb-3">Add Category</h6>
+                <form method="POST" action="{% url 'expenses:category_add' %}">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                        <input type="text" name="name" class="form-control"
+                               placeholder="Category name" required>
+                    </div>
+                    <div class="mb-3">
+                        <textarea name="description" class="form-control"
+                                  rows="2" placeholder="Description (optional)"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-plus-circle"></i> Add
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="mb-3">All Categories</h6>
+                <table class="table table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cat in categories %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td class="fw-semibold">{{ cat.name }}</td>
+                            <td>{{ cat.description|default:"—"|truncatechars:40 }}</td>
+                            <td>
+                                <a href="{% url 'expenses:category_delete' cat.pk %}"
+                                   class="btn btn-sm btn-outline-danger"
+                                   onclick="return confirm('Delete {{ cat.name }}?')">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">
+                                No categories yet.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

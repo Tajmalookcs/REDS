@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} — REDS{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:650px;">
+    <div class="card-body">
+        <form method="POST">
+            {% csrf_token %}
+            <div class="row g-3">
+
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Town Name (English) <span class="text-danger">*</span></label>
+                    <input type="text" name="name" class="form-control"
+                           value="{{ town.name|default:'' }}" required>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Town Name (Urdu)</label>
+                    <input type="text" name="name_urdu" class="form-control"
+                           value="{{ town.name_urdu|default:'' }}"
+                           dir="rtl" style="font-family: 'Jameel Noori Nastaleeq', serif;">
+                </div>
+
+                <div class="col-md-12">
+                    <label class="form-label fw-semibold">Link to Land Contract</label>
+                    <select name="land_contract" class="form-select">
+                        <option value="">— None —</option>
+                        {% for c in contracts %}
+                        <option value="{{ c.pk }}"
+                            {% if town and town.land_contract and town.land_contract.pk == c.pk %}selected{% endif %}>
+                            {{ c.title }} ({{ c.landlord.name }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    {% if contracts|length == 0 %}
+                    <div class="form-text text-muted">No active land contracts are available.</div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Total Area</label>
+                    <input type="number" name="total_area" class="form-control"
+                           value="{{ town.total_area|default:'' }}" step="0.01">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Location</label>
+                    <input type="text" name="location" class="form-control"
+                           value="{{ town.location|default:'' }}">
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Description</label>
+                    <textarea name="description" class="form-control"
+                              rows="2">{{ town.description|default:'' }}</textarea>
+                </div>
+
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i> Save
+                </button>
+                <a href="{% url 'development:town_list' %}" class="btn btn-outline-secondary">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

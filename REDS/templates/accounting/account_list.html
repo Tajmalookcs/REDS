@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block title %}Account Heads — REDS{% endblock %}
+{% block page_title %}Chart of Accounts{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+
+    <!-- Add Form -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="mb-3">Add Account Head</h6>
+                <form method="POST" action="{% url 'accounting:account_add' %}">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Code <span class="text-danger">*</span></label>
+                        <input type="text" name="code" class="form-control form-control-sm"
+                               placeholder="e.g. 1001" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control form-control-sm"
+                               placeholder="e.g. Cash in Hand" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Type <span class="text-danger">*</span></label>
+                        <select name="type" class="form-select form-select-sm" required>
+                            <option value="">— Select —</option>
+                            <option value="ASSET">Asset</option>
+                            <option value="LIABILITY">Liability</option>
+                            <option value="INCOME">Income</option>
+                            <option value="EXPENSE">Expense</option>
+                            <option value="EQUITY">Equity</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Description</label>
+                        <textarea name="description" class="form-control form-control-sm"
+                                  rows="2"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-plus-circle"></i> Add
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account List -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-3">
+                    <h6 class="mb-0">All Account Heads</h6>
+                    <a href="{% url 'accounting:journal_list' %}"
+                       class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-journal-text"></i> Journal Entries
+                    </a>
+                </div>
+
+                <table class="table table-hover table-sm align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Code</th>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for acc in accounts %}
+                        <tr>
+                            <td class="fw-semibold">{{ acc.code }}</td>
+                            <td>{{ acc.name }}</td>
+                            <td>
+                                <span class="badge
+                                    {% if acc.type == 'ASSET' %}bg-success
+                                    {% elif acc.type == 'LIABILITY' %}bg-danger
+                                    {% elif acc.type == 'INCOME' %}bg-primary
+                                    {% elif acc.type == 'EXPENSE' %}bg-warning text-dark
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ acc.type }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{% url 'accounting:account_edit' acc.pk %}"
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% if acc.is_active %}
+                                    <a href="{% url 'accounting:account_edit' acc.pk %}"
+                                        class="btn btn-sm btn-outline-warning"
+                                        title="Deactivate from Edit">
+                                            <i class="bi bi-toggle-on"></i>
+                                    </a>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">
+                                No account heads yet. Add one from the left.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

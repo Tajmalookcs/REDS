@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+
+{% block title %}Map Editor{% endblock %}
+
+{% block extra_css %}
+<style>
+    .editor-container {
+        display: flex;
+        gap: 16px;
+        height: calc(100vh - 180px);
+    }
+
+    .canvas-panel {
+        flex: 1;
+        position: relative;
+        background: #1a1a2e;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    #mapCanvas {
+        position: absolute;
+        top: 0; left: 0;
+        cursor: crosshair;
+    }
+
+    #mapImage {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        pointer-events: none;
+    }
+
+    .side-panel {
+        width: 280px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        overflow-y: auto;
+    }
+
+    .plot-item {
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        border: 2px solid transparent;
+        font-size: 0.85rem;
+        transition: all 0.15s;
+        background: #f8f9fa;
+    }
+
+    .plot-item:hover { background: #e9ecef; }
+    .plot-item.selected { border-color: #e94560; background: #fff0f3; }
+    .plot-item.mapped { border-color: #28a745; background: #f0fff4; }
+
+    .toolbar {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+    }
+
+    .instructions {
+        background: #fff3cd;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 0.82rem;
+        color: #856404;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">
+        <i class="bi bi-pencil-square"></i>
+        Map Editor — {{ town_map.title }}
+        <span class="text-muted fw-normal small ms-2">{{ town_map.town.name }}</span>
+    </h5>
+    <div class="d-flex gap-2">
+        <a href="{% url 'development:map_viewer' town_map.pk %}"
+           class="btn btn-sm btn-success">
+            <i class="bi bi-eye"></i> View Map
+        </a>
+        <a href="{% url 'development:map_list' %}"
+           class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+    </div>
+</div>
+
+<div class="instructions mb-3">
+    <strong>How to use:</strong>
+    1. Select a plot from the right panel.
+    2. Click and drag on the map to draw its boundary rectangle.
+    3. The rectangle saves automatically.
+    4. Green plots are already mapped.
+</div>
+
+<div class="editor-container">
+
+    <!-- Canvas Panel -->
+    <div class="canvas-panel" id="canvasPanel">
+        {% if town_map.is_image %}
+        <img id="mapImage" src="{{ town_map.map_file.url }}" alt="Map">
+        {% else %}
+        <div class="d-flex align-items-center justify-content-center h-100 text-white">
+            <div class="text-center">
+                <i class="bi bi-file-earmark-pdf-fill text-danger" style="font-size:4rem;"></i>
+                <div class="mt-2">PDF maps cannot be edited on canvas.</div>
+                <div class="small text-muted">Use image maps for plot marking.</div>
+            </div>
+        </div>
+        {% endif %}
+        <canvas id="mapCanvas"></canvas>
+    </div>
+
+    <!-- Side Panel -->
+    <div class="side-panel">
+
+        <!-- Selected Plot Info -->
+        <div class="card">
+            <div class="card-header fw-bold small">Selected Plot</div>
+            <div class="card-body p-2" id="selectedInfo">
+                <div class="text-muted small text-center py-2">
+                    No plot selected
+                </div>
+            </div>
+        </div>
+
+        <!-- Plot List -->
+        <div class="card flex-grow-1">
+            <div class="card-header fw-bold small d-flex justify-content-between">
+                <span>Plots</span>
+                <span class="badge bg-secondary" id="mappedCount">0 mapped</span>
+            </div>
+            <div class="card-body p-2" style="overflow-y:auto; max-height:400px;">
+                {% for plot in plots %}
+                <div class="plot-item {% if plot.pk|stringformat:'s' in coords_json %}mapped{% endif %}"
+                     data-plot-id="{{ plot.pk }}"
+                     data-plot-no="{{ plot.plot_no }}"
+                     data-block="{{ plot.block.name }}"
+                     onclick="selectPlot(this)">
+                    <div class="fw-bold">{{ plot.plot_no }}</div>
+                    <div class="text-muted" style="font-size:0.75rem;">
+                        {{ plot.block.name }} —
+                        <span class="badge
+                            {% if plot.status == 'AVAILABLE' %}bg-success
+                            {% elif plot.status == 'BOOKED' %}bg-warning text-dark
+                            {% elif plot.status == 'SOLD' %}bg-danger
+                            {% else %}bg-secondary{% endif %}"
+                            style="font-size:0.7rem;">
+                            {{ plot.status }}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="card">
+            <div class="card-body p-2 d-grid gap-2">
+                <button class="btn btn-sm btn-outline-danger" onclick="clearSelected()">
+                    <i class="bi bi-trash"></i> Remove Selected Marking
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="clearAll()">
+                    <i class="bi bi-x-circle"></i> Clear All Markings
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const COORDS_DATA    = {{ coords_json|safe }};
+const SAVE_URL       = "{% url 'development:map_save_coords' town_map.pk %}";
+const DEL_COORD_URL  = "{% url 'development:map_delete_coord' 0 %}".replace('/0/', '/');
+const CSRF_TOKEN     = "{{ csrf_token }}";
+
+const canvas      = document.getElementById('mapCanvas');
+const ctx         = canvas.getContext('2d');
+const panel       = document.getElementById('canvasPanel');
+const mapImage    = document.getElementById('mapImage');
+
+let selectedPlotId   = null;
+let selectedPlotEl   = null;
+let isDrawing        = false;
+let startX, startY, currentX, currentY;
+let drawnRects       = {};  // plotId -> {x, y, w, h, coordId}
+
+// ── Resize canvas to match panel ──
+function resizeCanvas() {
+    canvas.width  = panel.offsetWidth;
+    canvas.height = panel.offsetHeight;
+    redraw();
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// ── Load existing coordinates ──
+function loadExisting() {
+    Object.entries(COORDS_DATA).forEach(([plotId, data]) => {
+        const coords = data.coordinates;
+        if (coords && coords.length === 4) {
+            const x = coords[0][0] / 100 * canvas.width;
+            const y = coords[0][1] / 100 * canvas.height;
+            const w = (coords[1][0] - coords[0][0]) / 100 * canvas.width;
+            const h = (coords[2][1] - coords[0][1]) / 100 * canvas.height;
+            drawnRects[plotId] = { x, y, w, h, coordId: data.id, plotNo: data.plot_no };
+        }
+    });
+    updateMappedCount();
+    redraw();
+}
+
+// ── Select plot from side panel ──
+function selectPlot(el) {
+    if (selectedPlotEl) selectedPlotEl.classList.remove('selected');
+    selectedPlotEl = el;
+    el.classList.add('selected');
+    selectedPlotId = el.dataset.plotId;
+
+    const info = document.getElementById('selectedInfo');
+    info.innerHTML = `
+        <div class="fw-bold">${el.dataset.plotNo}</div>
+        <div class="text-muted small">${el.dataset.block}</div>
+        ${drawnRects[selectedPlotId]
+            ? '<div class="badge bg-success mt-1">Mapped ✓</div>'
+            : '<div class="badge bg-secondary mt-1">Not mapped yet</div>'}
+    `;
+    redraw();
+}
+
+// ── Draw on canvas ──
+canvas.addEventListener('mousedown', e => {
+    if (!selectedPlotId) {
+        alert('Please select a plot first.');
+        return;
+    }
+    isDrawing = true;
+    const rect = canvas.getBoundingClientRect();
+    startX = e.clientX - rect.left;
+    startY = e.clientY - rect.top;
+});
+
+canvas.addEventListener('mousemove', e => {
+    if (!isDrawing) return;
+    const rect = canvas.getBoundingClientRect();
+    currentX = e.clientX - rect.left;
+    currentY = e.clientY - rect.top;
+    redraw();
+    // Draw live rectangle
+    ctx.strokeStyle = '#e94560';
+    ctx.lineWidth   = 2;
+    ctx.setLineDash([5, 3]);
+    ctx.strokeRect(startX, startY, currentX - startX, currentY - startY);
+    ctx.setLineDash([]);
+});
+
+canvas.addEventListener('mouseup', e => {
+    if (!isDrawing) return;
+    isDrawing = false;
+    const rect = canvas.getBoundingClientRect();
+    const endX = e.clientX - rect.left;
+    const endY = e.clientY - rect.top;
+
+    const x = Math.min(startX, endX);
+    const y = Math.min(startY, endY);
+    const w = Math.abs(endX - startX);
+    const h = Math.abs(endY - startY);
+
+    if (w < 5 || h < 5) return;
+
+    // Convert to percentages
+    const px = x / canvas.width  * 100;
+    const py = y / canvas.height * 100;
+    const pw = w / canvas.width  * 100;
+    const ph = h / canvas.height * 100;
+
+    const coordinates = [
+        [px,      py],
+        [px + pw, py],
+        [px + pw, py + ph],
+        [px,      py + ph],
+    ];
+
+    drawnRects[selectedPlotId] = { x, y, w, h };
+    redraw();
+    saveCoords(selectedPlotId, coordinates);
+});
+
+// ── Redraw all rectangles ──
+function redraw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    Object.entries(drawnRects).forEach(([plotId, rect]) => {
+        const isSelected = plotId === selectedPlotId;
+        ctx.fillStyle   = isSelected ? 'rgba(233,69,96,0.25)' : 'rgba(40,167,69,0.2)';
+        ctx.strokeStyle = isSelected ? '#e94560' : '#28a745';
+        ctx.lineWidth   = isSelected ? 2.5 : 1.5;
+        ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+        ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+
+        // Label
+        ctx.fillStyle  = isSelected ? '#e94560' : '#155724';
+        ctx.font       = 'bold 11px Arial';
+        ctx.fillText(rect.plotNo || plotId, rect.x + 4, rect.y + 14);
+    });
+}
+
+// ── Save to server ──
+function saveCoords(plotId, coordinates) {
+    fetch(SAVE_URL, {
+        method:  'POST',
+        headers: {
+            'Content-Type':    'application/json',
+            'X-CSRFToken':     CSRF_TOKEN,
+        },
+        body: JSON.stringify({ plot_id: plotId, coordinates }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            if (selectedPlotEl) selectedPlotEl.classList.add('mapped');
+            updateMappedCount();
+            selectPlot(selectedPlotEl);
+        } else {
+            alert('Save failed: ' + data.error);
+        }
+    });
+}
+
+// ── Clear selected plot marking ──
+function clearSelected() {
+    if (!selectedPlotId) return alert('Select a plot first.');
+    const rect = drawnRects[selectedPlotId];
+    if (!rect) return alert('This plot has no marking.');
+
+    if (!confirm('Remove marking for this plot?')) return;
+
+    if (rect.coordId) {
+        fetch(DEL_COORD_URL + rect.coordId + '/', {
+            method:  'POST',
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+        });
+    }
+
+    delete drawnRects[selectedPlotId];
+    if (selectedPlotEl) selectedPlotEl.classList.remove('mapped');
+    updateMappedCount();
+    redraw();
+}
+
+// ── Clear all markings ──
+function clearAll() {
+    if (!confirm('Remove ALL plot markings from this map?')) return;
+    Object.entries(drawnRects).forEach(([plotId, rect]) => {
+        if (rect.coordId) {
+            fetch(DEL_COORD_URL + rect.coordId + '/', {
+                method:  'POST',
+                headers: { 'X-CSRFToken': CSRF_TOKEN },
+            });
+        }
+    });
+    drawnRects = {};
+    document.querySelectorAll('.plot-item').forEach(el => el.classList.remove('mapped'));
+    updateMappedCount();
+    redraw();
+}
+
+// ── Update mapped count badge ──
+function updateMappedCount() {
+    document.getElementById('mappedCount').textContent =
+        Object.keys(drawnRects).length + ' mapped';
+}
+
+// ── Load existing on page load ──
+if (mapImage) {
+    mapImage.onload = loadExisting;
+    if (mapImage.complete) loadExisting();
+} else {
+    loadExisting();
+}
+</script>
+{% endblock %}
