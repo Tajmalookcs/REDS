@@ -1,4 +1,3 @@
-from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -10,7 +9,7 @@ from apps.development.models import Plot
 from apps.customers.models import Customer
 from apps.agents.models import Agent
 from apps.sales.models import PlotTransfer
-
+from django.utils import timezone
 
 # ======================================================
 # UTILITY — Auto Receipt Number
@@ -75,6 +74,7 @@ def booking_add(request):
         if customer_id:
             customer = get_object_or_404(Customer, pk=customer_id)
         else:
+            # Create new customer from inline fields
             new_name    = request.POST.get('new_name', '').strip()
             new_contact = request.POST.get('new_contact', '').strip()
             if not new_name or not new_contact:
@@ -88,10 +88,10 @@ def booking_add(request):
                 city    = request.POST.get('new_city', '').strip(),
             )
 
-        total_price  = Decimal(request.POST.get('total_price', '0'))
-        discount     = Decimal(request.POST.get('discount', '0'))
+        total_price  = float(request.POST.get('total_price', 0))
+        discount     = float(request.POST.get('discount', 0))
         net_price    = total_price - discount
-        down_payment = Decimal(request.POST.get('down_payment', '0'))
+        down_payment = float(request.POST.get('down_payment', 0))
 
         # Create Booking
         booking = Booking.objects.create(
@@ -114,7 +114,7 @@ def booking_add(request):
 
         # Auto-create agent commission if agent selected
         if agent:
-            rate = Decimal(request.POST.get('commission_rate', '0'))
+            rate = float(request.POST.get('commission_rate', 0))
             if rate > 0:
                 AgentCommission.objects.create(
                     booking           = booking,
@@ -136,7 +136,7 @@ def booking_add(request):
                 created_by   = request.user,
             )
 
-        # First installment (optional inline entry)
+        # ── First installment (optional inline entry) ──
         inst_date   = request.POST.get('inst_date', '').strip()
         inst_amount = request.POST.get('inst_amount', '').strip()
         if inst_date and inst_amount:
@@ -144,7 +144,7 @@ def booking_add(request):
                 booking        = booking,
                 installment_no = 1,
                 due_date       = inst_date,
-                amount         = Decimal(inst_amount),
+                amount         = float(inst_amount),
                 created_at     = booking.created_at,
             )
 
@@ -157,18 +157,16 @@ def booking_add(request):
         'agents':    agents,
         'title':     'New Booking',
     })
-
-
 # ======================================================
 # BOOKING DETAIL
 # ======================================================
 
 @login_required
 def booking_detail(request, pk):
-    booking       = get_object_or_404(Booking, pk=pk, is_deleted=False)
+    booking      = get_object_or_404(Booking, pk=pk, is_deleted=False)
     payment_plans = booking.payment_plans.all()
-    receipts      = booking.receipts.filter(is_deleted=False).order_by('-receipt_date')
-    today         = timezone.now().date()
+    receipts     = booking.receipts.filter(is_deleted=False).order_by('-receipt_date')
+    today        = timezone.now().date()
 
     return render(request, 'sales/booking_detail.html', {
         'booking':       booking,
@@ -179,7 +177,7 @@ def booking_detail(request, pk):
 
 
 # ======================================================
-# BOOKING EDIT
+# BOOKING EDIT (status + notes only)
 # ======================================================
 
 @login_required
@@ -199,9 +197,9 @@ def booking_edit(request, pk):
         return redirect('sales:booking_detail', pk=booking.pk)
 
     return render(request, 'sales/booking_edit.html', {
-        'booking': booking,
-        'agents':  agents,
-        'title':   'Edit Booking',
+        'booking':  booking,
+        'agents':   agents,
+        'title':    'Edit Booking',
     })
 
 
@@ -217,6 +215,7 @@ def booking_delete(request, pk):
         messages.error(request, 'Cannot delete a booking that has receipts.')
         return redirect('sales:booking_list')
 
+    # Restore plot to AVAILABLE
     booking.plot.status = 'AVAILABLE'
     booking.plot.save()
 
@@ -239,7 +238,7 @@ def plan_add(request, booking_pk):
             booking        = booking,
             installment_no = request.POST.get('installment_no'),
             due_date       = request.POST.get('due_date'),
-            amount         = Decimal(request.POST.get('amount', '0')),
+            amount         = request.POST.get('amount'),
             notes          = request.POST.get('notes', ''),
         )
         messages.success(request, 'Installment added.')
@@ -259,7 +258,7 @@ def receipt_add(request, booking_pk):
     if request.method == 'POST':
         plan_pk = request.POST.get('payment_plan')
         plan    = PaymentPlan.objects.filter(pk=plan_pk).first() if plan_pk else None
-        amount  = Decimal(request.POST.get('amount', '0'))
+        amount  = float(request.POST.get('amount', 0))
 
         receipt = Receipt.objects.create(
             booking      = booking,
@@ -277,8 +276,8 @@ def receipt_add(request, booking_pk):
 
         # Update payment plan status if linked
         if plan:
-            plan.paid_amount = (plan.paid_amount or Decimal('0')) + amount
-            plan.paid_date   = request.POST.get('receipt_date')
+            plan.paid_amount += amount
+            plan.paid_date    = request.POST.get('receipt_date')
             if plan.paid_amount >= plan.amount:
                 plan.status = 'PAID'
             else:
@@ -333,12 +332,13 @@ def booking_cancel(request, pk):
             booking           = booking,
             cancellation_date = request.POST.get('cancellation_date'),
             reason            = request.POST.get('reason', ''),
-            refund_amount     = Decimal(request.POST.get('refund_amount', '0')),
-            deduction_amount  = Decimal(request.POST.get('deduction_amount', '0')),
+            refund_amount     = request.POST.get('refund_amount', 0),
+            deduction_amount  = request.POST.get('deduction_amount', 0),
             notes             = request.POST.get('notes', ''),
             created_by        = request.user,
         )
 
+        # Update booking and plot status
         booking.status      = 'CANCELLED'
         booking.plot.status = 'AVAILABLE'
         booking.plot.save()
@@ -349,13 +349,7 @@ def booking_cancel(request, pk):
 
     return render(request, 'sales/booking_cancel.html', {
         'booking': booking,
-        'today':   timezone.now().date(),
     })
-
-
-# ======================================================
-# RECEIPT PRINT
-# ======================================================
 
 @login_required
 def receipt_print(request, pk):
@@ -367,19 +361,15 @@ def receipt_print(request, pk):
         'business': business,
     })
 
-
-# ======================================================
-# BOOKING PRINT
-# ======================================================
-
 @login_required
 def booking_print(request, pk):
     from apps.core.models import BusinessProfile
+    from apps.sales.models import PaymentPlan, Receipt
     booking      = get_object_or_404(Booking, pk=pk)
     business     = BusinessProfile.objects.first()
     installments = PaymentPlan.objects.filter(booking=booking).order_by('installment_no')
     receipts     = Receipt.objects.filter(booking=booking)
-    total_paid   = receipts.aggregate(t=Sum('amount'))['t'] or Decimal('0')
+    total_paid   = receipts.aggregate(t=Sum('amount'))['t'] or 0
     balance      = booking.net_price - total_paid
     return render(request, 'sales/booking_print.html', {
         'booking':      booking,
@@ -389,17 +379,18 @@ def booking_print(request, pk):
         'balance':      balance,
     })
 
+# ======================================================
+# PLOT TRANSFER — FORM VIEW
+# ======================================================
 
-# ======================================================
-# PLOT TRANSFER
-# ======================================================
 
 @login_required
 def transfer_create(request, booking_id):
     booking = get_object_or_404(Booking, pk=booking_id, is_deleted=False)
 
+    # Calculate remaining balance
     total_paid        = booking.receipts.filter(is_deleted=False).aggregate(
-                            t=Sum('amount'))['t'] or Decimal('0')
+                            t=Sum('amount'))['t'] or 0
     remaining_balance = booking.net_price - total_paid
 
     if request.method == 'POST':
@@ -408,15 +399,18 @@ def transfer_create(request, booking_id):
         to_customer   = None
 
         if transfer_type == 'SELF':
+            # Transfer to same customer — just register
             to_customer = booking.customer
 
         elif transfer_type == 'NEW_PERSON':
+            # Create new customer from form fields
             name    = request.POST.get('new_name', '').strip()
             contact = request.POST.get('new_contact', '').strip()
             cnic    = request.POST.get('new_cnic', '').strip()
             address = request.POST.get('new_address', '').strip()
 
             if not name or not contact:
+                from django.contrib import messages
                 messages.error(request, 'Name and Contact are required for new person.')
                 return redirect('transfer_create', booking_id=booking_id)
 
@@ -440,19 +434,23 @@ def transfer_create(request, booking_id):
                 created_by        = request.user,
             )
 
+            # Update booking customer if new person
             if transfer_type == 'NEW_PERSON':
                 booking.customer = to_customer
                 booking.save()
 
+            # If balance is zero — mark plot as REGISTERED (Step 99)
             if remaining_balance <= 0:
-                plot        = booking.plot
+                plot = booking.plot
                 plot.status = 'REGISTERED'
                 plot.save()
 
-            messages.success(request, 'Transfer completed successfully.')
-            return redirect('sales:booking_detail', pk=booking_id)
+            from django.contrib import messages
+            messages.success(request, f'Transfer completed successfully.')
+            return redirect('booking_detail', pk=booking_id)
 
-    return render(request, 'sales/transfer_form.html', {
+    context = {
         'booking':           booking,
         'remaining_balance': remaining_balance,
-    })
+    }
+    return render(request, 'sales/transfer_form.html', context)

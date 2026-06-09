@@ -234,52 +234,6 @@
                 </div>
             </div>
         </div>
-        <div class="card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between mb-3">
-                    <h6 class="mb-0">Receipts</h6>
-                    {% if booking.status == 'ACTIVE' %}
-                    <button class="btn btn-sm btn-success"
-                            data-bs-toggle="modal"
-                            data-bs-target="#addReceiptModal">
-                        <i class="bi bi-plus-circle"></i> Add Receipt
-                    </button>
-                    {% endif %}
-                </div>
-
-                <table class="table table-sm align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Receipt No</th>
-                            <th>Date</th>
-                            <th>Amount</th>
-                            <th>Mode</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for r in receipts %}
-                        <tr>
-                            <td class="fw-semibold">{{ r.receipt_no }}</td>
-                            <td>{{ r.receipt_date }}</td>
-                            <td class="text-success">{{ r.amount|floatformat:0 }}</td>
-                            <td>
-                                <span class="badge bg-secondary">
-                                    {{ r.payment_mode }}
-                                </span>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="4" class="text-center text-muted py-3">
-                                No receipts yet.
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
 
 </div>
 
