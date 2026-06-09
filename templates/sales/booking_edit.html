@@ -3,7 +3,39 @@
 {% block page_title %}Edit Booking #{{ booking.pk }}{% endblock %}
 
 {% block content %}
+
+<!-- Booking Summary Bar -->
+<div class="card mb-4">
+    <div class="card-body py-2">
+        <div class="row align-items-center">
+            <div class="col-md-3">
+                <div class="text-muted small">Booking No</div>
+                <div class="fw-bold">{{ booking.booking_no }}</div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-muted small">Customer</div>
+                <div class="fw-bold">{{ booking.customer.name }}</div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-muted small">Plot</div>
+                <div class="fw-bold">
+                    {{ booking.plot.plot_no }} —
+                    {{ booking.plot.block.name }} —
+                    {{ booking.plot.block.town.name }}
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-muted small">Net Price</div>
+                <div class="fw-bold">Rs. {{ booking.net_price|floatformat:0 }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card" style="max-width:600px;">
+    <div class="card-header fw-bold">
+        <i class="bi bi-pencil-square me-2"></i>Edit Booking #{{ booking.pk }}
+    </div>
     <div class="card-body">
         <form method="POST">
             {% csrf_token %}
@@ -44,7 +76,7 @@
 
             <div class="d-flex gap-2 mt-4">
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save"></i> Save
+                    <i class="bi bi-save"></i> Save Changes
                 </button>
                 <a href="{% url 'sales:booking_detail' booking.pk %}"
                    class="btn btn-outline-secondary">Cancel</a>

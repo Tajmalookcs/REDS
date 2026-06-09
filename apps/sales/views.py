@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Sum
+from requests import request
 from .models import Booking, PaymentPlan, Receipt, Cancellation, AgentCommission
 from apps.development.models import Plot
 from apps.customers.models import Customer
@@ -190,9 +191,8 @@ def booking_edit(request, pk):
     if request.method == 'POST':
         booking.notes  = request.POST.get('notes', '')
         booking.status = request.POST.get('status', booking.status)
-        booking.agent  = Agent.objects.filter(
-                            pk=request.POST.get('agent')
-                         ).first()
+        agent_pk       = request.POST.get('agent', '').strip()
+        booking.agent  = Agent.objects.filter(pk=agent_pk).first() if agent_pk else None
         booking.save()
         messages.success(request, 'Booking updated.')
         return redirect('sales:booking_detail', pk=booking.pk)

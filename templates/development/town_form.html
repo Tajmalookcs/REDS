@@ -3,16 +3,18 @@
 {% block page_title %}{{ title }}{% endblock %}
 
 {% block content %}
-<div class="card" style="max-width:700px;">
+<div class="card" style="max-width:650px;">
     <div class="card-body">
-        <form method="POST" enctype="multipart/form-data">
+        <form method="POST" id="townForm">
             {% csrf_token %}
             <div class="row g-3">
 
                 <div class="col-md-6">
                     <label class="form-label fw-semibold">Town Name (English) <span class="text-danger">*</span></label>
-                    <input type="text" name="name" class="form-control"
-                           value="{{ town.name|default:'' }}" required>
+                    <input type="text" name="name" id="townNameInput" class="form-control"
+                           value="{{ town.name|default:'' }}" required
+                           oninput="triggerNameCheck()">
+                    <div id="nameMsg" class="mt-2" style="display:none;"></div>
                 </div>
 
                 <div class="col-md-6">
@@ -34,7 +36,7 @@
                         {% endfor %}
                     </select>
                     {% if contracts|length == 0 %}
-                    <div class="form-text text-muted">No active land contracts available.</div>
+                    <div class="form-text text-muted">No active land contracts are available.</div>
                     {% endif %}
                 </div>
 
@@ -56,67 +58,10 @@
                               rows="2">{{ town.description|default:'' }}</textarea>
                 </div>
 
-                <!-- ── Town Image ─────────────────────── -->
-                <div class="col-12">
-                    <label class="form-label fw-semibold">
-                        Town Image
-                        <span class="text-muted small fw-normal">
-                            (JPG / PNG — shown on dashboard card)
-                        </span>
-                    </label>
-
-                    {% if existing_image %}
-                    <!-- Show current image -->
-                    <div class="mb-2 p-2 border rounded d-flex align-items-center gap-3"
-                         style="background:#f8f9fa;">
-                        <img src="{{ existing_image.map_file.url }}"
-                             alt="Current Image"
-                             style="height:70px; width:110px;
-                                    object-fit:cover; border-radius:6px;">
-                        <div>
-                            <div class="fw-semibold small">Current Image</div>
-                            <div class="text-muted" style="font-size:0.75rem;">
-                                Upload a new image to replace it
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    <!-- Drop zone -->
-                    <div id="dropZone"
-                         role="button"
-                         tabindex="0"
-                         style="border:2px dashed #dee2e6; border-radius:8px;
-                                padding:20px; text-align:center; cursor:pointer;
-                                transition:all 0.2s; position:relative;">
-                        <i class="bi bi-cloud-upload fs-3 text-muted" id="dropIcon"></i>
-                        <div class="text-muted mt-1" id="dropText">
-                            Drag & drop image here or
-                            <span class="text-primary fw-semibold">click to browse</span>
-                        </div>
-                        <div class="text-muted small" id="fileHint">
-                            Accepted: JPG, PNG (max 10MB)
-                        </div>
-                        <input type="file"
-                               name="town_image"
-                               id="townImageInput"
-                               accept=".jpg,.jpeg,.png"
-                               class="d-none">
-                    </div>
-
-                    <!-- Preview -->
-                    <div id="previewBox" style="display:none; margin-top:10px;">
-                        <img id="previewImg" src=""
-                             style="max-height:200px; max-width:100%;
-                                    border-radius:8px; border:1px solid #dee2e6;">
-                        <div id="previewName" class="text-muted small mt-1"></div>
-                    </div>
-                </div>
-
             </div>
 
             <div class="d-flex gap-2 mt-4">
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" id="saveBtn" class="btn btn-primary">
                     <i class="bi bi-save"></i> Save
                 </button>
                 <a href="{% url 'development:town_list' %}" class="btn btn-outline-secondary">
@@ -130,55 +75,104 @@
 
 {% block extra_js %}
 <script>
-const dropZone  = document.getElementById('dropZone');
-const fileInput = document.getElementById('townImageInput');
-const preview   = document.getElementById('previewBox');
-const previewImg= document.getElementById('previewImg');
-const previewNm = document.getElementById('previewName');
+const CHECK_URL = "{% url 'development:check_town_name' %}";
+const EDIT_PK   = "{{ town.pk|default:'' }}";
 
-dropZone.addEventListener('click', () => fileInput.click());
-dropZone.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        fileInput.click();
+let checkTimer = null;
+
+function triggerNameCheck() {
+    clearTimeout(checkTimer);
+    const name = document.getElementById('townNameInput').value.trim();
+
+    if (!name) {
+        hideMsg();
+        enableSave();
+        return;
     }
-});
 
-dropZone.addEventListener('dragover', e => {
-    e.preventDefault();
-    dropZone.style.borderColor = '#e94560';
-    dropZone.style.background  = '#fff0f3';
-});
+    showChecking();
 
-dropZone.addEventListener('dragleave', () => {
-    dropZone.style.borderColor = '#dee2e6';
-    dropZone.style.background  = '';
-});
+    checkTimer = setTimeout(() => {
+        const params = new URLSearchParams({ name });
+        if (EDIT_PK) params.append('town_pk', EDIT_PK);
 
-dropZone.addEventListener('drop', e => {
-    e.preventDefault();
-    dropZone.style.borderColor = '#dee2e6';
-    dropZone.style.background  = '';
-    if (e.dataTransfer.files.length) {
-        fileInput.files = e.dataTransfer.files;
-        showPreview(e.dataTransfer.files[0]);
-    }
-});
-
-fileInput.addEventListener('change', () => {
-    if (fileInput.files.length) showPreview(fileInput.files[0]);
-});
-
-function showPreview(file) {
-    const reader = new FileReader();
-    reader.onload = e => {
-        previewImg.src   = e.target.result;
-        previewNm.textContent = file.name;
-        preview.style.display = 'block';
-    };
-    reader.readAsDataURL(file);
-    document.getElementById('dropIcon').className = 'bi bi-check-circle-fill fs-3 text-success';
-    document.getElementById('dropText').textContent = '✓ Image selected — ready to save';
+        fetch(CHECK_URL + '?' + params.toString())
+            .then(r => r.json())
+            .then(data => {
+                if (!data.available) {
+                    showDuplicate(data.town);
+                } else {
+                    showAvailable();
+                    enableSave();
+                }
+            })
+            .catch(() => {
+                hideMsg();
+                enableSave();
+            });
+    }, 400);
 }
+
+function showChecking() {
+    const msg = document.getElementById('nameMsg');
+    msg.style.display = 'block';
+    msg.innerHTML = `
+        <div class="d-flex align-items-center gap-2 text-muted small">
+            <div class="spinner-border spinner-border-sm"></div>
+            <span>Checking name…</span>
+        </div>`;
+}
+
+function showAvailable() {
+    const msg = document.getElementById('nameMsg');
+    msg.style.display = 'block';
+    msg.innerHTML = `
+        <div class="alert alert-success py-2 px-3 mb-0 small">
+            <i class="bi bi-check-circle-fill me-1"></i>
+            Town name is available.
+        </div>`;
+}
+
+function showDuplicate(town) {
+    const msg = document.getElementById('nameMsg');
+    msg.style.display = 'block';
+    msg.innerHTML = `
+        <div class="alert alert-danger py-2 px-3 mb-0 small">
+            <div class="fw-bold mb-1">
+                <i class="bi bi-x-circle-fill me-1"></i>
+                Town <strong>${town.name}</strong> already exists.
+            </div>
+            <div class="mt-1" style="line-height:1.9;">
+                <span class="badge bg-secondary me-1">Location: ${town.location}</span>
+                <span class="badge bg-secondary me-1">Blocks: ${town.blocks}</span>
+            </div>
+        </div>`;
+    disableSave();
+}
+
+function hideMsg() {
+    const msg = document.getElementById('nameMsg');
+    msg.style.display = 'none';
+    msg.innerHTML = '';
+}
+
+function disableSave() {
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-x-circle"></i> Town Already Exists';
+    btn.classList.replace('btn-primary', 'btn-secondary');
+}
+
+function enableSave() {
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-save"></i> Save';
+    btn.classList.replace('btn-secondary', 'btn-primary');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const name = document.getElementById('townNameInput').value.trim();
+    if (name) triggerNameCheck();
+});
 </script>
 {% endblock %}

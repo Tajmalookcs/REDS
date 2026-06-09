@@ -8,6 +8,7 @@ from django.views.decorators.http import require_POST
 from django.core.files.storage import default_storage
 
 
+
 # ======================================================
 # TOWNS
 # ======================================================
@@ -672,3 +673,101 @@ def plot_bulk_add(request):
         'blocks': blocks,
         'title':  'Bulk Add Plots',
     })
+
+@login_required
+def check_plot_availability(request):
+    plot_no  = request.GET.get('plot_no', '').strip()
+    block_id = request.GET.get('block_id', '').strip()
+    plot_pk  = request.GET.get('plot_pk', '').strip()  # for edit mode exclusion
+
+    if not plot_no or not block_id:
+        return JsonResponse({'available': True, 'plot': None})
+
+    qs = Plot.objects.filter(
+        plot_no__iexact=plot_no,
+        block_id=block_id,
+        is_deleted=False,
+    )
+
+    if plot_pk:
+        qs = qs.exclude(pk=plot_pk)
+
+    existing = qs.select_related('block__town').first()
+
+    if existing:
+        return JsonResponse({
+            'available': False,
+            'plot': {
+                'plot_no':   existing.plot_no,
+                'block':     existing.block.name,
+                'town':      existing.block.town.name,
+                'size':      str(existing.size),
+                'size_unit': existing.size_unit,
+                'plot_type': existing.get_plot_type_display(),
+                'price':     str(existing.price),
+                'status':    existing.status,
+            }
+        })
+
+    return JsonResponse({'available': True, 'plot': None})
+
+@login_required
+def check_town_name(request):
+    name     = request.GET.get('name', '').strip()
+    town_pk  = request.GET.get('town_pk', '').strip()
+
+    if not name:
+        return JsonResponse({'available': True, 'town': None})
+
+    qs = Town.objects.filter(name__iexact=name, is_deleted=False)
+
+    if town_pk:
+        qs = qs.exclude(pk=town_pk)
+
+    existing = qs.first()
+
+    if existing:
+        return JsonResponse({
+            'available': False,
+            'town': {
+                'name':     existing.name,
+                'location': existing.location or '—',
+                'blocks':   existing.blocks.filter(is_deleted=False).count(),
+            }
+        })
+
+    return JsonResponse({'available': True, 'town': None})
+
+@login_required
+def check_block_name(request):
+    name     = request.GET.get('name', '').strip()
+    town_id  = request.GET.get('town_id', '').strip()
+    block_pk = request.GET.get('block_pk', '').strip()
+
+    if not name or not town_id:
+        return JsonResponse({'available': True, 'block': None})
+
+    qs = Block.objects.filter(
+        name__iexact=name,
+        town_id=town_id,
+        is_deleted=False
+    )
+
+    if block_pk:
+        qs = qs.exclude(pk=block_pk)
+
+    existing = qs.select_related('town').first()
+
+    if existing:
+        return JsonResponse({
+            'available': False,
+            'block': {
+                'name':        existing.name,
+                'town':        existing.town.name,
+                'total_plots': existing.total_plots,
+                'available':   existing.available_plots,
+                'sold':        existing.sold_plots,
+            }
+        })
+
+    return JsonResponse({'available': True, 'block': None})

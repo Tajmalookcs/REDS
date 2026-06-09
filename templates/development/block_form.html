@@ -5,13 +5,14 @@
 {% block content %}
 <div class="card" style="max-width:600px;">
     <div class="card-body">
-        <form method="POST">
+        <form method="POST" id="blockForm">
             {% csrf_token %}
             <div class="row g-3">
 
                 <div class="col-12">
                     <label class="form-label fw-semibold">Town <span class="text-danger">*</span></label>
-                    <select name="town" class="form-select" required>
+                    <select name="town" id="townSelect" class="form-select" required
+                            onchange="triggerNameCheck()">
                         <option value="">— Select Town —</option>
                         {% for t in towns %}
                         <option value="{{ t.pk }}"
@@ -24,9 +25,11 @@
 
                 <div class="col-md-6">
                     <label class="form-label fw-semibold">Block Name (English) <span class="text-danger">*</span></label>
-                    <input type="text" name="name" class="form-control"
+                    <input type="text" name="name" id="blockNameInput" class="form-control"
                            value="{{ block.name|default:'' }}"
-                           placeholder="e.g. A, B, C or Block A" required>
+                           placeholder="e.g. A, B, C or Block A" required
+                           oninput="triggerNameCheck()">
+                    <div id="nameMsg" class="mt-2" style="display:none;"></div>
                 </div>
 
                 <div class="col-md-6">
@@ -51,7 +54,7 @@
             </div>
 
             <div class="d-flex gap-2 mt-4">
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" id="saveBtn" class="btn btn-primary">
                     <i class="bi bi-save"></i> Save
                 </button>
                 <a href="{% url 'development:block_list' %}" class="btn btn-outline-secondary">
@@ -61,4 +64,111 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CHECK_URL = "{% url 'development:check_block_name' %}";
+const EDIT_PK   = "{{ block.pk|default:'' }}";
+
+let checkTimer = null;
+
+function triggerNameCheck() {
+    clearTimeout(checkTimer);
+    const name   = document.getElementById('blockNameInput').value.trim();
+    const townId = document.getElementById('townSelect').value;
+
+    if (!name || !townId) {
+        hideMsg();
+        enableSave();
+        return;
+    }
+
+    showChecking();
+
+    checkTimer = setTimeout(() => {
+        const params = new URLSearchParams({ name, town_id: townId });
+        if (EDIT_PK) params.append('block_pk', EDIT_PK);
+
+        fetch(CHECK_URL + '?' + params.toString())
+            .then(r => r.json())
+            .then(data => {
+                if (!data.available) {
+                    showDuplicate(data.block);
+                } else {
+                    showAvailable();
+                    enableSave();
+                }
+            })
+            .catch(() => {
+                hideMsg();
+                enableSave();
+            });
+    }, 400);
+}
+
+function showChecking() {
+    const msg = document.getElementById('nameMsg');
+    msg.style.display = 'block';
+    msg.innerHTML = `
+        <div class="d-flex align-items-center gap-2 text-muted small">
+            <div class="spinner-border spinner-border-sm"></div>
+            <span>Checking name…</span>
+        </div>`;
+}
+
+function showAvailable() {
+    const msg = document.getElementById('nameMsg');
+    msg.style.display = 'block';
+    msg.innerHTML = `
+        <div class="alert alert-success py-2 px-3 mb-0 small">
+            <i class="bi bi-check-circle-fill me-1"></i>
+            Block name is available in this town.
+        </div>`;
+}
+
+function showDuplicate(block) {
+    const msg = document.getElementById('nameMsg');
+    msg.style.display = 'block';
+    msg.innerHTML = `
+        <div class="alert alert-danger py-2 px-3 mb-0 small">
+            <div class="fw-bold mb-1">
+                <i class="bi bi-x-circle-fill me-1"></i>
+                Block <strong>${block.name}</strong> already exists in <strong>${block.town}</strong>.
+            </div>
+            <div class="mt-1" style="line-height:1.9;">
+                <span class="badge bg-secondary me-1">Total Plots: ${block.total_plots}</span>
+                <span class="badge bg-success me-1">Available: ${block.available}</span>
+                <span class="badge bg-danger me-1">Sold: ${block.sold}</span>
+            </div>
+        </div>`;
+    disableSave();
+}
+
+function hideMsg() {
+    const msg = document.getElementById('nameMsg');
+    msg.style.display = 'none';
+    msg.innerHTML = '';
+}
+
+function disableSave() {
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-x-circle"></i> Block Already Exists';
+    btn.classList.replace('btn-primary', 'btn-secondary');
+}
+
+function enableSave() {
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-save"></i> Save';
+    btn.classList.replace('btn-secondary', 'btn-primary');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const name   = document.getElementById('blockNameInput').value.trim();
+    const townId = document.getElementById('townSelect').value;
+    if (name && townId) triggerNameCheck();
+});
+</script>
 {% endblock %}
