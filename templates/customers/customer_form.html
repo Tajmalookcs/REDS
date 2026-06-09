@@ -5,7 +5,7 @@
 {% block content %}
 <div class="card" style="max-width:600px;">
     <div class="card-body">
-        <form method="POST">
+        <form method="POST" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="row g-3">
 
@@ -54,6 +54,38 @@
                               rows="2">{{ customer.address|default:'' }}</textarea>
                 </div>
 
+                <!-- Photo Field -->
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Customer Photo</label>
+                    <div class="d-flex align-items-center gap-3">
+                        {% if customer.photo %}
+                        <img id="photoPreview"
+                             src="{{ customer.photo.url }}"
+                             alt="Customer Photo"
+                             style="width:96px; height:96px; object-fit:cover;
+                                    border-radius:6px; border:2px solid #dee2e6;">
+                        {% else %}
+                        <div id="photoPlaceholder"
+                             style="width:96px; height:96px; border-radius:6px;
+                                    border:2px dashed #dee2e6; background:#f8f9fa;
+                                    display:flex; align-items:center;
+                                    justify-content:center; color:#adb5bd;">
+                            <i class="bi bi-person-fill" style="font-size:2.5rem;"></i>
+                        </div>
+                        <img id="photoPreview" src="#" alt="Preview"
+                             style="width:96px; height:96px; object-fit:cover;
+                                    border-radius:6px; border:2px solid #dee2e6;
+                                    display:none;">
+                        {% endif %}
+                        <div>
+                            <input type="file" name="photo" id="photoInput"
+                                   class="form-control" accept="image/*"
+                                   onchange="previewPhoto(this)">
+                            <div class="form-text">JPG or PNG. Will display as 1×1 inch.</div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
             <div class="d-flex gap-2 mt-4">
@@ -67,4 +99,22 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function previewPhoto(input) {
+    const preview      = document.getElementById('photoPreview');
+    const placeholder  = document.getElementById('photoPlaceholder');
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            preview.src          = e.target.result;
+            preview.style.display = 'block';
+            if (placeholder) placeholder.style.display = 'none';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+</script>
 {% endblock %}

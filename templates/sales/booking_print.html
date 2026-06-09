@@ -134,6 +134,9 @@
             .no-print { display: none; }
             .page { margin: 0; }
         }
+        @media print {
+            img { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
     </style>
 </head>
 <body>
@@ -144,7 +147,7 @@
         style="padding:8px 24px; background:#e94560; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:14px;">
         &#128424; Print Booking
     </button>
-    <button onclick="window.history.back()"
+    <button onclick="goBack()"
         style="padding:8px 24px; background:#666; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:14px; margin-left:8px;">
         &larr; Back
     </button>
@@ -202,30 +205,56 @@
 
     <!-- Customer Info -->
     <div class="section-title">Customer Details</div>
-    <div class="grid">
-        <div class="row">
-            <span class="label">Name:</span>
-            <span class="value">{{ booking.customer.name }}</span>
-        </div>
-        <div class="row">
-            <span class="label">CNIC:</span>
-            <span class="value">{{ booking.customer.cnic }}</span>
-        </div>
-        <div class="row">
-            <span class="label">Phone:</span>
-            <span class="value">{{ booking.customer.phone }}</span>
-        </div>
-        <div class="row">
-            <span class="label">City:</span>
-            <span class="value">{{ booking.customer.city }}</span>
-        </div>
-        <div class="row" style="grid-column: span 2;">
-            <span class="label">Address:</span>
-            <span class="value">{{ booking.customer.address }}</span>
-        </div>
-    </div>
+<!-- Customer Info -->
+    <div class="section-title">Customer Details</div>
+    <div style="display:flex; align-items:flex-start; gap:16px; margin-bottom:8px;">
 
-    <!-- Plot Info -->
+        <!-- Photo 1x1 inch = 96px -->
+        <div style="flex-shrink:0;">
+            {% if booking.customer.photo %}
+            <img src="{{ booking.customer.photo.url }}"
+                 alt="{{ booking.customer.name }}"
+                 style="width:96px; height:96px; object-fit:cover;
+                        border:2px solid #000; border-radius:4px;">
+            {% else %}
+            <div style="width:96px; height:96px; border:2px solid #000;
+                        border-radius:4px; background:#f0f0f0;
+                        display:flex; align-items:center;
+                        justify-content:center; font-size:11px;
+                        color:#666; text-align:center;">
+                No<br>Photo
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Customer Fields -->
+        <div style="flex:1;">
+            <div class="grid">
+                <div class="row">
+                    <span class="label">Name:</span>
+                    <span class="value">{{ booking.customer.name }}</span>
+                </div>
+                <div class="row">
+                    <span class="label">CNIC:</span>
+                    <span class="value">{{ booking.customer.cnic }}</span>
+                </div>
+                <div class="row">
+                    <span class="label">Phone:</span>
+                    <span class="value">{{ booking.customer.phone }}</span>
+                </div>
+                <div class="row">
+                    <span class="label">City:</span>
+                    <span class="value">{{ booking.customer.city }}</span>
+                </div>
+                <div class="row" style="grid-column: span 2;">
+                    <span class="label">Address:</span>
+                    <span class="value">{{ booking.customer.address }}</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+<!-- Plot Info -->
     <div class="section-title">Plot Details</div>
     <div class="grid">
         <div class="row">
@@ -247,6 +276,18 @@
         <div class="row">
             <span class="label">Type:</span>
             <span class="value">{{ booking.plot.get_type_display }}</span>
+        </div>
+        <div class="row">
+            <span class="label">Booking Date:</span>
+            <span class="value">{{ booking.booking_date }}</span>
+        </div>
+        <div class="row">
+            <span class="label">Down Payment:</span>
+            <span class="value">Rs. {{ booking.down_payment|floatformat:0 }}</span>
+        </div>
+        <div class="row">
+            <span class="label">Agent:</span>
+            <span class="value">{{ booking.agent.name|default:"—" }}</span>
         </div>
     </div>
 
@@ -312,5 +353,14 @@
     </div>
 
 </div>
+    <script>
+    function goBack() {
+        if (document.referrer && document.referrer !== '') {
+            window.location.href = document.referrer;
+        } else {
+            window.location.href = '/sales/bookings/{{ booking.pk }}/';
+        }
+    }
+    </script>
 </body>
 </html>

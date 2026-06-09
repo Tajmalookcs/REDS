@@ -34,7 +34,7 @@ def generate_receipt_no():
 
 @login_required
 def booking_list(request):
-    status   = request.GET.get('status', '')
+    status   = request.GET.get('status', 'ACTIVE')
     bookings = Booking.objects.filter(
                     is_deleted=False
                ).select_related(
@@ -49,7 +49,6 @@ def booking_list(request):
         'selected_status': status,
         'status_choices':  Booking.STATUS_CHOICES,
     })
-
 
 # ======================================================
 # BOOKING ADD
@@ -242,11 +241,15 @@ def plan_add(request, booking_pk):
             amount         = Decimal(request.POST.get('amount', '0')),
             notes          = request.POST.get('notes', ''),
         )
+        # Return JSON if AJAX/fetch, redirect if normal form
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or \
+           not request.POST.get('_redirect', True):
+            from django.http import JsonResponse
+            return JsonResponse({'success': True})
         messages.success(request, 'Installment added.')
         return redirect('sales:booking_detail', pk=booking_pk)
 
     return redirect('sales:booking_detail', pk=booking_pk)
-
 
 # ======================================================
 # RECEIPT — ADD

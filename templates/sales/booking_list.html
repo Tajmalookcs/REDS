@@ -10,13 +10,15 @@
         <form method="GET" class="row g-2 mb-3">
             <div class="col-md-3">
                 <select name="status" class="form-select form-select-sm"
-                        onchange="this.form.submit()">
-                    <option value="">— All Status —</option>
-                    {% for val, label in status_choices %}
-                    <option value="{{ val }}"
-                        {% if selected_status == val %}selected{% endif %}>
-                        {{ label }}
-                    </option>
+                    onchange="this.form.submit()">
+                        <option value="">— All Status —</option>
+                        {% for val, label in status_choices %}
+                        <option value="{{ val }}"
+                            {% if selected_status == val %}selected
+                            {% elif not selected_status and val == 'ACTIVE' %}selected
+                            {% endif %}>
+                    {{ label }}
+                        </option>
                     {% endfor %}
                 </select>
             </div>

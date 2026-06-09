@@ -6,7 +6,6 @@
 <div class="card">
     <div class="card-body">
 
-        <!-- Search + Add -->
         <form method="GET" class="row g-2 mb-3">
             <div class="col-md-4">
                 <input type="text" name="q" class="form-control form-control-sm"
@@ -31,6 +30,7 @@
             <thead class="table-light">
                 <tr>
                     <th>#</th>
+                    <th>Photo</th>
                     <th>Name</th>
                     <th>Contact</th>
                     <th>CNIC</th>
@@ -43,7 +43,24 @@
                 {% for c in customers %}
                 <tr>
                     <td>{{ forloop.counter }}</td>
-                    <td class="fw-semibold">{{ c.name }}</td>
+                    <td>
+                        {% if c.photo %}
+                        <img src="{{ c.photo.url }}" alt="{{ c.name }}"
+                             style="width:40px; height:40px; object-fit:cover;
+                                    border-radius:4px; border:1px solid #dee2e6;">
+                        {% else %}
+                        <div style="width:40px; height:40px; border-radius:4px;
+                                    border:1px solid #dee2e6; background:#f8f9fa;
+                                    display:flex; align-items:center;
+                                    justify-content:center; color:#adb5bd;">
+                            <i class="bi bi-person-fill"></i>
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td class="fw-semibold">
+                        <a href="{% url 'customers:customer_detail' c.pk %}"
+                           class="text-decoration-none">{{ c.name }}</a>
+                    </td>
                     <td>{{ c.contact }}</td>
                     <td>{{ c.cnic|default:"—" }}</td>
                     <td>{{ c.city|default:"—" }}</td>
@@ -62,7 +79,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center text-muted py-4">
+                    <td colspan="8" class="text-center text-muted py-4">
                         No customers found.
                     </td>
                 </tr>
