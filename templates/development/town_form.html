@@ -84,6 +84,8 @@
 
                     <!-- Drop zone -->
                     <div id="dropZone"
+                         role="button"
+                         tabindex="0"
                          style="border:2px dashed #dee2e6; border-radius:8px;
                                 padding:20px; text-align:center; cursor:pointer;
                                 transition:all 0.2s; position:relative;">
@@ -99,9 +101,7 @@
                                name="town_image"
                                id="townImageInput"
                                accept=".jpg,.jpeg,.png"
-                               style="position:absolute; opacity:0;
-                                      width:100%; height:100%;
-                                      top:0; left:0; cursor:pointer;">
+                               class="d-none">
                     </div>
 
                     <!-- Preview -->
@@ -137,6 +137,12 @@ const previewImg= document.getElementById('previewImg');
 const previewNm = document.getElementById('previewName');
 
 dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        fileInput.click();
+    }
+});
 
 dropZone.addEventListener('dragover', e => {
     e.preventDefault();

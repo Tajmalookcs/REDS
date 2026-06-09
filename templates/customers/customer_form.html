@@ -79,8 +79,7 @@
                         {% endif %}
                         <div>
                             <input type="file" name="photo" id="photoInput"
-                                   class="form-control" accept="image/*"
-                                   onchange="previewPhoto(this)">
+                                   class="form-control" accept="image/*">
                             <div class="form-text">JPG or PNG. Will display as 1×1 inch.</div>
                         </div>
                     </div>
@@ -103,6 +102,12 @@
 
 {% block extra_js %}
 <script>
+const photoInput = document.getElementById('photoInput');
+
+if (photoInput) {
+    photoInput.addEventListener('change', () => previewPhoto(photoInput));
+}
+
 function previewPhoto(input) {
     const preview      = document.getElementById('photoPreview');
     const placeholder  = document.getElementById('photoPlaceholder');

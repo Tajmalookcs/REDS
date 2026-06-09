@@ -40,6 +40,7 @@ class Expense(models.Model):
     cheque_bank     = models.CharField(max_length=100, blank=True)
     cheque_date     = models.DateField(null=True, blank=True)
     narration       = models.TextField(blank=True)
+    image           = models.ImageField(upload_to='expenses/', blank=True, null=True)
     is_deleted      = models.BooleanField(default=False)
     created_at      = models.DateTimeField(auto_now_add=True)
     updated_at      = models.DateTimeField(auto_now=True)
