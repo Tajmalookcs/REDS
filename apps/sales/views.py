@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Sum
+from requests import request
 from .models import Booking, PaymentPlan, Receipt, Cancellation, AgentCommission
 from apps.development.models import Plot
 from apps.customers.models import Customer
@@ -34,7 +35,7 @@ def generate_receipt_no():
 
 @login_required
 def booking_list(request):
-    status   = request.GET.get('status', '')
+    status   = request.GET.get('status', 'ACTIVE')
     bookings = Booking.objects.filter(
                     is_deleted=False
                ).select_related(
@@ -49,7 +50,6 @@ def booking_list(request):
         'selected_status': status,
         'status_choices':  Booking.STATUS_CHOICES,
     })
-
 
 # ======================================================
 # BOOKING ADD
@@ -191,9 +191,8 @@ def booking_edit(request, pk):
     if request.method == 'POST':
         booking.notes  = request.POST.get('notes', '')
         booking.status = request.POST.get('status', booking.status)
-        booking.agent  = Agent.objects.filter(
-                            pk=request.POST.get('agent')
-                         ).first()
+        agent_pk       = request.POST.get('agent', '').strip()
+        booking.agent  = Agent.objects.filter(pk=agent_pk).first() if agent_pk else None
         booking.save()
         messages.success(request, 'Booking updated.')
         return redirect('sales:booking_detail', pk=booking.pk)
@@ -242,11 +241,15 @@ def plan_add(request, booking_pk):
             amount         = Decimal(request.POST.get('amount', '0')),
             notes          = request.POST.get('notes', ''),
         )
+        # Return JSON if AJAX/fetch, redirect if normal form
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or \
+           not request.POST.get('_redirect', True):
+            from django.http import JsonResponse
+            return JsonResponse({'success': True})
         messages.success(request, 'Installment added.')
         return redirect('sales:booking_detail', pk=booking_pk)
 
     return redirect('sales:booking_detail', pk=booking_pk)
-
 
 # ======================================================
 # RECEIPT — ADD

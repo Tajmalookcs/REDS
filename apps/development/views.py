@@ -8,6 +8,7 @@ from django.views.decorators.http import require_POST
 from django.core.files.storage import default_storage
 
 
+
 # ======================================================
 # TOWNS
 # ======================================================
@@ -42,7 +43,7 @@ def town_add(request):
                     'title':     'Add Town',
                 })
 
-        Town.objects.create(
+        town = Town.objects.create(
             name          = request.POST.get('name'),
             name_urdu     = request.POST.get('name_urdu', ''),
             land_contract = land_contract,
@@ -51,6 +52,20 @@ def town_add(request):
             description   = request.POST.get('description', ''),
             created_by    = request.user,
         )
+
+        town_image = request.FILES.get('town_image')
+        if town_image:
+            from apps.development.models import TownMap
+            TownMap.objects.create(
+                town          = town,
+                title         = f"{town.name} — Main Image",
+                map_type      = 'IMAGE',
+                map_file      = town_image,
+                display_order = 0,
+                is_active     = True,
+                created_by    = request.user,
+            )
+
         messages.success(request, 'Town added successfully.')
         return redirect('development:town_list')
 
@@ -69,6 +84,11 @@ def town_edit(request, pk):
         status='ACTIVE',
     ).select_related('landlord')
 
+    existing_image = town.maps.filter(
+        map_type='IMAGE',
+        is_active=True
+    ).first()
+
     if request.method == 'POST':
         contract_pk   = request.POST.get('land_contract')
         land_contract = None
@@ -81,9 +101,10 @@ def town_edit(request, pk):
             if not land_contract:
                 messages.error(request, 'Selected land contract is invalid.')
                 return render(request, 'development/town_form.html', {
-                    'town':      town,
-                    'contracts': contracts,
-                    'title':     'Edit Town',
+                    'town':           town,
+                    'contracts':      contracts,
+                    'existing_image': existing_image,
+                    'title':          'Edit Town',
                 })
 
         town.name          = request.POST.get('name')
@@ -93,13 +114,32 @@ def town_edit(request, pk):
         town.total_area    = request.POST.get('total_area') or None
         town.description   = request.POST.get('description', '')
         town.save()
+
+        town_image = request.FILES.get('town_image')
+        if town_image:
+            from apps.development.models import TownMap
+            if existing_image:
+                existing_image.map_file = town_image
+                existing_image.save()
+            else:
+                TownMap.objects.create(
+                    town          = town,
+                    title         = f"{town.name} — Main Image",
+                    map_type      = 'IMAGE',
+                    map_file      = town_image,
+                    display_order = 0,
+                    is_active     = True,
+                    created_by    = request.user,
+                )
+
         messages.success(request, 'Town updated.')
         return redirect('development:town_list')
 
     return render(request, 'development/town_form.html', {
-        'town':      town,
-        'contracts': contracts,
-        'title':     'Edit Town',
+        'town':           town,
+        'contracts':      contracts,
+        'existing_image': existing_image,
+        'title':          'Edit Town',
     })
 
 
@@ -198,7 +238,13 @@ def plot_list(request):
 
     towns      = Town.objects.filter(is_deleted=False).order_by('name')
     blocks     = Block.objects.filter(is_deleted=False).order_by('town', 'name')
-    plots      = Plot.objects.filter(is_deleted=False).select_related('block__town')
+    plots = Plot.objects.filter(is_deleted=False).select_related('block__town').extra(
+    select={
+        'plot_alpha': "TRIM(TRIM(plot_no, '0123456789'), ' ')",
+        'plot_num':   "CAST(COALESCE(NULLIF(TRIM(plot_no, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz- '), ''), '0') AS INTEGER)",
+    }
+        )
+ 
     base_plots = Plot.objects.filter(is_deleted=False)
 
     if town_id:
@@ -210,6 +256,8 @@ def plot_list(request):
         base_plots = base_plots.filter(block_id=block_id)
     if status:
         plots = plots.filter(status=status)
+
+    plots = plots.order_by('block__town__name', 'block__name', 'plot_alpha', 'plot_num')
 
     status_counts = {}
     for val, label in Plot.STATUS_CHOICES:
@@ -233,6 +281,33 @@ def plot_add(request):
         is_deleted=False
     ).select_related('town').order_by('town__name', 'name')
 
+    towns = Town.objects.filter(is_deleted=False).order_by('name')
+
+    selected_block_id = request.GET.get('block', '')
+    selected_town_id  = request.GET.get('town', '')
+
+    existing_plots = []
+    if selected_block_id:
+        existing_plots = Plot.objects.filter(
+            block_id=selected_block_id,
+            is_deleted=False
+        ).extra(
+            select={
+                'plot_alpha': "TRIM(TRIM(plot_no, '0123456789'), ' ')",
+                'plot_num':   "CAST(COALESCE(NULLIF(TRIM(plot_no, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz- '), ''), '0') AS INTEGER)",
+            }
+        ).order_by('plot_alpha', 'plot_num')
+    elif selected_town_id:
+        existing_plots = Plot.objects.filter(
+            block__town_id=selected_town_id,
+            is_deleted=False
+        ).select_related('block').extra(
+            select={
+                'plot_alpha': "TRIM(TRIM(plot_no, '0123456789'), ' ')",
+                'plot_num':   "CAST(COALESCE(NULLIF(TRIM(plot_no, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz- '), ''), '0') AS INTEGER)",
+            }
+        ).order_by('block__name', 'plot_alpha', 'plot_num')
+
     if request.method == 'POST':
         block = get_object_or_404(Block, pk=request.POST.get('block'))
         Plot.objects.create(
@@ -247,13 +322,16 @@ def plot_add(request):
             created_by = request.user,
         )
         messages.success(request, 'Plot added successfully.')
-        return redirect('development:plot_list')
+        return redirect(request.get_full_path())
 
     return render(request, 'development/plot_form.html', {
-        'blocks': blocks,
-        'title':  'Add Plot',
+        'blocks':             blocks,
+        'towns':              towns,
+        'title':              'Add Plot',
+        'existing_plots':     existing_plots,
+        'selected_block_id':  selected_block_id,
+        'selected_town_id':   selected_town_id,
     })
-
 
 @login_required
 def plot_edit(request, pk):
@@ -445,12 +523,22 @@ def map_editor(request, pk):
         plots = Plot.objects.filter(
             block=town_map.block,
             is_deleted=False
-        ).order_by('plot_no')
+        ).extra(
+            select={
+                'plot_alpha': "TRIM(TRIM(plot_no, '0123456789'), ' ')",
+                'plot_num':   "CAST(COALESCE(NULLIF(TRIM(plot_no, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz- '), ''), '0') AS INTEGER)",
+            }
+        ).order_by('plot_alpha', 'plot_num')
     else:
         plots = Plot.objects.filter(
             block__town=town,
             is_deleted=False
-        ).select_related('block').order_by('block__name', 'plot_no')
+        ).select_related('block').extra(
+            select={
+                'plot_alpha': "TRIM(TRIM(plot_no, '0123456789'), ' ')",
+                'plot_num':   "CAST(COALESCE(NULLIF(TRIM(plot_no, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz- '), ''), '0') AS INTEGER)",
+            }
+        ).order_by('block__name', 'plot_alpha', 'plot_num')
 
     existing = PlotCoordinate.objects.filter(
         town_map=town_map
@@ -579,3 +667,182 @@ def map_pdf_viewer(request, pk):
     return render(request, 'development/map_pdf_viewer.html', {
         'town_map': town_map,
     })
+
+
+@login_required
+def plot_bulk_add(request):
+    blocks = Block.objects.filter(
+        is_deleted=False
+    ).select_related('town').order_by('town__name', 'name')
+
+    towns = Town.objects.filter(is_deleted=False).order_by('name')
+
+    selected_block_id = request.GET.get('block', '')
+    selected_town_id  = request.GET.get('town', '')
+
+    existing_plots = []
+    if selected_block_id:
+        existing_plots = Plot.objects.filter(
+            block_id=selected_block_id,
+            is_deleted=False
+        ).extra(
+            select={
+                'plot_alpha': "TRIM(TRIM(plot_no, '0123456789'), ' ')",
+                'plot_num':   "CAST(COALESCE(NULLIF(TRIM(plot_no, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz- '), ''), '0') AS INTEGER)",
+            }
+        ).order_by('plot_alpha', 'plot_num')
+    elif selected_town_id:
+        existing_plots = Plot.objects.filter(
+            block__town_id=selected_town_id,
+            is_deleted=False
+        ).select_related('block').extra(
+            select={
+                'plot_alpha': "TRIM(TRIM(plot_no, '0123456789'), ' ')",
+                'plot_num':   "CAST(COALESCE(NULLIF(TRIM(plot_no, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz- '), ''), '0') AS INTEGER)",
+            }
+        ).order_by('block__name', 'plot_alpha', 'plot_num')
+
+    if request.method == 'POST':
+        import json
+        plots_data = request.POST.get('plots_json', '[]')
+        try:
+            plots_list = json.loads(plots_data)
+        except Exception:
+            messages.error(request, 'Invalid data submitted.')
+            return redirect('development:plot_bulk_add')
+
+        created = 0
+        errors  = []
+        for i, p in enumerate(plots_list):
+            try:
+                block = Block.objects.get(pk=p['block'])
+                Plot.objects.create(
+                    block      = block,
+                    plot_no    = p['plot_no'],
+                    size       = p['size'],
+                    size_unit  = p.get('size_unit', 'MARLA'),
+                    plot_type  = p.get('plot_type', 'RESIDENTIAL'),
+                    price      = p['price'],
+                    status     = p.get('status', 'AVAILABLE'),
+                    notes      = p.get('notes', ''),
+                    created_by = request.user,
+                )
+                created += 1
+            except Exception as e:
+                errors.append(f"Row {i+1} ({p.get('plot_no','?')}): {str(e)}")
+
+        if errors:
+            for err in errors:
+                messages.error(request, err)
+        if created:
+            messages.success(request, f'{created} plot(s) saved successfully.')
+        return redirect(request.get_full_path())
+
+    return render(request, 'development/plot_bulk_add.html', {
+        'blocks':            blocks,
+        'towns':             towns,
+        'title':             'Bulk Add Plots',
+        'existing_plots':    existing_plots,
+        'selected_block_id': selected_block_id,
+        'selected_town_id':  selected_town_id,
+    })
+
+@login_required
+def check_plot_availability(request):
+    plot_no  = request.GET.get('plot_no', '').strip()
+    block_id = request.GET.get('block_id', '').strip()
+    plot_pk  = request.GET.get('plot_pk', '').strip()
+
+    if not plot_no or not block_id:
+        return JsonResponse({'available': True, 'plot': None})
+
+    qs = Plot.objects.filter(
+        plot_no__iexact=plot_no,
+        block_id=block_id,
+        is_deleted=False,
+    )
+
+    if plot_pk:
+        qs = qs.exclude(pk=plot_pk)
+
+    existing = qs.select_related('block__town').first()
+
+    if existing:
+        return JsonResponse({
+            'available': False,
+            'plot': {
+                'plot_no':   existing.plot_no,
+                'block':     existing.block.name,
+                'town':      existing.block.town.name,
+                'size':      str(existing.size),
+                'size_unit': existing.size_unit,
+                'plot_type': existing.get_plot_type_display(),
+                'price':     str(existing.price),
+                'status':    existing.status,
+            }
+        })
+
+    return JsonResponse({'available': True, 'plot': None})
+
+
+@login_required
+def check_town_name(request):
+    name    = request.GET.get('name', '').strip()
+    town_pk = request.GET.get('town_pk', '').strip()
+
+    if not name:
+        return JsonResponse({'available': True, 'town': None})
+
+    qs = Town.objects.filter(name__iexact=name, is_deleted=False)
+
+    if town_pk:
+        qs = qs.exclude(pk=town_pk)
+
+    existing = qs.first()
+
+    if existing:
+        return JsonResponse({
+            'available': False,
+            'town': {
+                'name':     existing.name,
+                'location': existing.location or '—',
+                'blocks':   existing.blocks.filter(is_deleted=False).count(),
+            }
+        })
+
+    return JsonResponse({'available': True, 'town': None})
+
+
+@login_required
+def check_block_name(request):
+    name     = request.GET.get('name', '').strip()
+    town_id  = request.GET.get('town_id', '').strip()
+    block_pk = request.GET.get('block_pk', '').strip()
+
+    if not name or not town_id:
+        return JsonResponse({'available': True, 'block': None})
+
+    qs = Block.objects.filter(
+        name__iexact=name,
+        town_id=town_id,
+        is_deleted=False
+    )
+
+    if block_pk:
+        qs = qs.exclude(pk=block_pk)
+
+    existing = qs.select_related('town').first()
+
+    if existing:
+        return JsonResponse({
+            'available': False,
+            'block': {
+                'name':        existing.name,
+                'town':        existing.town.name,
+                'total_plots': existing.total_plots,
+                'available':   existing.available_plots,
+                'sold':        existing.sold_plots,
+            }
+        })
+
+    return JsonResponse({'available': True, 'block': None})

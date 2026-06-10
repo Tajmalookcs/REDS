@@ -3,92 +3,237 @@
 {% block page_title %}{{ title }}{% endblock %}
 
 {% block content %}
-<div class="card" style="max-width:650px;">
-    <div class="card-body">
-        <form method="POST">
-            {% csrf_token %}
-            <div class="row g-3">
+<div class="row g-4">
 
-                <div class="col-12">
-                    <label class="form-label fw-semibold">Block <span class="text-danger">*</span></label>
-                    <select name="block" class="form-select" required>
-                        <option value="">— Select Block —</option>
-                        {% for b in blocks %}
-                        <option value="{{ b.pk }}"
-                            {% if plot and plot.block.pk == b.pk %}selected{% endif %}>
-                            {{ b.town.name }} — Block {{ b.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold">Plot No <span class="text-danger">*</span></label>
-                    <input type="text" name="plot_no" class="form-control"
-                           value="{{ plot.plot_no|default:'' }}"
-                           placeholder="e.g. 101, A-5" required>
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">Size <span class="text-danger">*</span></label>
-                    <input type="number" name="size" class="form-control"
-                           value="{{ plot.size|default:'' }}"
-                           step="0.01" required>
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">Unit</label>
-                    <select name="size_unit" class="form-select">
-                        <option value="MARLA" {% if not plot or plot.size_unit == 'MARLA' %}selected{% endif %}>Marla</option>
-                        <option value="KANAL" {% if plot and plot.size_unit == 'KANAL' %}selected{% endif %}>Kanal</option>
-                        <option value="SQFT"  {% if plot and plot.size_unit == 'SQFT'  %}selected{% endif %}>Sq Ft</option>
-                    </select>
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold">Plot Type</label>
-                    <select name="plot_type" class="form-select">
-                        <option value="RESIDENTIAL" {% if not plot or plot.plot_type == 'RESIDENTIAL' %}selected{% endif %}>Residential</option>
-                        <option value="COMMERCIAL"  {% if plot and plot.plot_type == 'COMMERCIAL'  %}selected{% endif %}>Commercial</option>
-                        <option value="CORNER"      {% if plot and plot.plot_type == 'CORNER'      %}selected{% endif %}>Corner</option>
-                    </select>
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold">Price (Rs.) <span class="text-danger">*</span></label>
-                    <input type="number" name="price" class="form-control"
-                           value="{{ plot.price|default:'' }}"
-                           step="0.01" required>
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold">Status</label>
-                    <select name="status" class="form-select">
-                        <option value="AVAILABLE"  {% if not plot or plot.status == 'AVAILABLE'  %}selected{% endif %}>Available</option>
-                        <option value="HOLD"        {% if plot and plot.status == 'HOLD'        %}selected{% endif %}>Hold</option>
-                        <option value="BOOKED"      {% if plot and plot.status == 'BOOKED'      %}selected{% endif %}>Booked</option>
-                        <option value="SOLD"        {% if plot and plot.status == 'SOLD'        %}selected{% endif %}>Sold</option>
-                        <option value="CANCELLED"   {% if plot and plot.status == 'CANCELLED'   %}selected{% endif %}>Cancelled</option>
-                    </select>
-                </div>
-
-                <div class="col-12">
-                    <label class="form-label fw-semibold">Notes</label>
-                    <textarea name="notes" class="form-control"
-                              rows="2">{{ plot.notes|default:'' }}</textarea>
-                </div>
-
+    <!-- LEFT: Add Plot Form -->
+    <div class="{% if existing_plots %}col-md-4{% else %}col-md-6{% endif %}">
+        <div class="card">
+            <div class="card-header fw-bold">
+                <i class="bi bi-plus-circle"></i> {{ title }}
             </div>
+            <div class="card-body">
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="row g-3">
 
-            <div class="d-flex gap-2 mt-4">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save"></i> Save
-                </button>
-                <a href="{% url 'development:plot_list' %}" class="btn btn-outline-secondary">
-                    Cancel
-                </a>
+                        <!-- Town filter (only on add, not edit) -->
+                        {% if not plot %}
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Filter by Town</label>
+                            <select id="townFilter" class="form-select"
+                                    onchange="filterByTown(this.value)">
+                                <option value="">— Select Town —</option>
+                                {% for t in towns %}
+                                <option value="{{ t.pk }}"
+                                    {% if selected_town_id == t.pk|stringformat:"s" %}selected{% endif %}>
+                                    {{ t.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Block <span class="text-danger">*</span></label>
+                            <select name="block" id="blockSelect" class="form-select" required
+                                    onchange="filterByBlock(this.value)">
+                                <option value="">— Select Block —</option>
+                                {% for b in blocks %}
+                                <option value="{{ b.pk }}"
+                                    data-town="{{ b.town.pk }}"
+                                    {% if plot and plot.block.pk == b.pk %}selected
+                                    {% elif selected_block_id == b.pk|stringformat:"s" %}selected
+                                    {% endif %}>
+                                    {{ b.town.name }} — Block {{ b.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Plot No <span class="text-danger">*</span></label>
+                            <input type="text" name="plot_no" class="form-control"
+                                   value="{{ plot.plot_no|default:'' }}"
+                                   placeholder="e.g. 101, A-5" required>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Size <span class="text-danger">*</span></label>
+                            <input type="number" name="size" class="form-control"
+                                   value="{{ plot.size|default:'' }}"
+                                   step="0.01" required>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Unit</label>
+                            <select name="size_unit" class="form-select">
+                                <option value="MARLA" {% if not plot or plot.size_unit == 'MARLA' %}selected{% endif %}>Marla</option>
+                                <option value="KANAL" {% if plot and plot.size_unit == 'KANAL' %}selected{% endif %}>Kanal</option>
+                                <option value="SQFT"  {% if plot and plot.size_unit == 'SQFT'  %}selected{% endif %}>Sq Ft</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Plot Type</label>
+                            <select name="plot_type" class="form-select">
+                                <option value="RESIDENTIAL" {% if not plot or plot.plot_type == 'RESIDENTIAL' %}selected{% endif %}>Residential</option>
+                                <option value="COMMERCIAL"  {% if plot and plot.plot_type == 'COMMERCIAL'  %}selected{% endif %}>Commercial</option>
+                                <option value="CORNER"      {% if plot and plot.plot_type == 'CORNER'      %}selected{% endif %}>Corner</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Price (Rs.) <span class="text-danger">*</span></label>
+                            <input type="number" name="price" class="form-control"
+                                   value="{{ plot.price|default:'' }}"
+                                   step="0.01" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="AVAILABLE"  {% if not plot or plot.status == 'AVAILABLE'  %}selected{% endif %}>Available</option>
+                                <option value="HOLD"        {% if plot and plot.status == 'HOLD'        %}selected{% endif %}>Hold</option>
+                                <option value="BOOKED"      {% if plot and plot.status == 'BOOKED'      %}selected{% endif %}>Booked</option>
+                                <option value="SOLD"        {% if plot and plot.status == 'SOLD'        %}selected{% endif %}>Sold</option>
+                                <option value="CANCELLED"   {% if plot and plot.status == 'CANCELLED'   %}selected{% endif %}>Cancelled</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Notes</label>
+                            <textarea name="notes" class="form-control"
+                                      rows="2">{{ plot.notes|default:'' }}</textarea>
+                        </div>
+
+                    </div>
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Save
+                        </button>
+                        <a href="{% url 'development:plot_list' %}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
             </div>
-        </form>
+        </div>
     </div>
+
+    <!-- RIGHT: Existing Plots Table -->
+    {% if existing_plots %}
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header fw-bold d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-list-ul"></i> Existing Plots</span>
+                <span class="badge bg-secondary">{{ existing_plots|length }} plots</span>
+            </div>
+            <div class="card-body p-0" style="max-height: 80vh; overflow-y: auto;">
+                <table class="table table-hover table-sm align-middle mb-0">
+                    <thead class="table-dark sticky-top">
+                        <tr>
+                            <th>#</th>
+                            <th>Plot No</th>
+                            <th>Block</th>
+                            <th>Size</th>
+                            <th>Type</th>
+                            <th>Price</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in existing_plots %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td class="fw-semibold">{{ p.plot_no }}</td>
+                            <td>{{ p.block.name }}</td>
+                            <td>{{ p.size }} {{ p.size_unit }}</td>
+                            <td>{{ p.get_plot_type_display }}</td>
+                            <td>{{ p.price|floatformat:0 }}</td>
+                            <td>
+                                <span class="badge
+                                    {% if p.status == 'AVAILABLE' %}bg-success
+                                    {% elif p.status == 'BOOKED' %}bg-warning text-dark
+                                    {% elif p.status == 'SOLD' %}bg-danger
+                                    {% elif p.status == 'HOLD' %}bg-secondary
+                                    {% else %}bg-dark{% endif %}">
+                                    {{ p.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{% url 'development:plot_edit' p.pk %}"
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const allBlocks = [
+    {% for b in blocks %}
+    { pk: "{{ b.pk }}", town: "{{ b.town.pk }}", label: "{{ b.town.name }} — Block {{ b.name }}" },
+    {% endfor %}
+];
+
+function filterByTown(townId) {
+    const sel = document.getElementById('blockSelect');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">— Select Block —</option>';
+    allBlocks.forEach(b => {
+        if (!townId || b.town === townId) {
+            const opt = document.createElement('option');
+            opt.value = b.pk;
+            opt.textContent = b.label;
+            if (b.pk === current) opt.selected = true;
+            sel.appendChild(opt);
+        }
+    });
+    // reload page to show existing plots for this town
+    const url = new URL(window.location.href);
+    url.searchParams.set('town', townId);
+    url.searchParams.delete('block');
+    window.location.href = url.toString();
+}
+
+function filterByBlock(blockId) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('block', blockId);
+    // find town for this block
+    const found = allBlocks.find(b => b.pk === blockId);
+    if (found) url.searchParams.set('town', found.town);
+    window.location.href = url.toString();
+}
+
+// On load — filter block dropdown by selected town
+window.addEventListener('DOMContentLoaded', () => {
+    const townId = "{{ selected_town_id }}";
+    if (townId) {
+        const sel = document.getElementById('blockSelect');
+        const current = sel.value;
+        sel.innerHTML = '<option value="">— Select Block —</option>';
+        allBlocks.forEach(b => {
+            if (b.town === townId) {
+                const opt = document.createElement('option');
+                opt.value = b.pk;
+                opt.textContent = b.label;
+                if (b.pk === current) opt.selected = true;
+                sel.appendChild(opt);
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

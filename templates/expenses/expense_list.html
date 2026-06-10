@@ -62,14 +62,28 @@
                     </td>
                     <td>
                         <a href="{% url 'expenses:expense_edit' e.pk %}"
-                           class="btn btn-sm btn-outline-primary">
+                        class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-pencil"></i>
                         </a>
                         <a href="{% url 'expenses:expense_delete' e.pk %}"
-                           class="btn btn-sm btn-outline-danger"
-                           onclick="return confirm('Delete this expense?')">
+                        class="btn btn-sm btn-outline-danger"
+                        onclick="return confirm('Delete this expense?')">
                             <i class="bi bi-trash"></i>
                         </a>
+                        {% if e.image %}
+                        <button type="button"
+                                class="btn btn-sm btn-outline-info"
+                                onclick="showImage('{{ e.image.url }}', '{{ e.title }}')"
+                                title="View Receipt">
+                            <i class="bi bi-image"></i>
+                        </button>
+                        {% else %}
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                disabled title="No image uploaded">
+                            <i class="bi bi-image"></i>
+                        </button>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}
@@ -84,4 +98,39 @@
 
     </div>
 </div>
+        <!-- Image Viewer Modal -->
+        <div class="modal fade" id="imageModal" tabindex="-1">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h6 class="modal-title" id="imageModalTitle">Receipt Image</h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body text-center p-2">
+                        <img id="imageModalImg" src="#" alt="Receipt"
+                            class="img-fluid rounded"
+                            style="max-height: 75vh; object-fit: contain;">
+                    </div>
+                    <div class="modal-footer">
+                        <a id="imageDownloadBtn" href="#" download
+                        class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-download"></i> Download
+                        </a>
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+{% block extra_js %}
+<script>
+function showImage(url, title) {
+    document.getElementById('imageModalImg').src = url;
+    document.getElementById('imageModalTitle').textContent = title + ' — Receipt';
+    document.getElementById('imageDownloadBtn').href = url;
+    new bootstrap.Modal(document.getElementById('imageModal')).show();
+}
+</script>
+{% endblock %}
 {% endblock %}

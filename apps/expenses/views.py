@@ -40,6 +40,7 @@ def expense_add(request):
             cheque_bank  = request.POST.get('cheque_bank', ''),
             cheque_date  = request.POST.get('cheque_date') or None,
             narration    = request.POST.get('narration', ''),
+            image        = request.FILES.get('image'),   # ← ADD THIS
             created_by   = request.user,
         )
         messages.success(request, 'Expense recorded.')
@@ -69,6 +70,8 @@ def expense_edit(request, pk):
         expense.cheque_bank  = request.POST.get('cheque_bank', '')
         expense.cheque_date  = request.POST.get('cheque_date') or None
         expense.narration    = request.POST.get('narration', '')
+        if request.FILES.get('image'):          # ← ADD THIS BLOCK
+            expense.image = request.FILES.get('image')
         expense.save()
         messages.success(request, 'Expense updated.')
         return redirect('expenses:expense_list')
@@ -78,7 +81,6 @@ def expense_edit(request, pk):
         'categories': categories,
         'title':      'Edit Expense',
     })
-
 
 @login_required
 def expense_delete(request, pk):

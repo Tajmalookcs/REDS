@@ -1,0 +1,318 @@
+{% extends 'base.html' %}
+{% block title %}Bulk Add Plots — REDS{% endblock %}
+{% block page_title %}Bulk Add Plots{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-grid-3x3-gap"></i> Bulk Add Plots</h5>
+    <a href="{% url 'development:plot_list' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> Back to Plots
+    </a>
+</div>
+
+<div class="row g-3">
+
+    <!-- Entry Form -->
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header fw-bold">
+                <i class="bi bi-plus-circle"></i> Add Plot to List
+            </div>
+            <div class="card-body">
+
+                <div class="mb-2">
+                    <label class="form-label fw-semibold">Block <span class="text-danger">*</span></label>
+                    <select id="f_block" class="form-select">
+                        <option value="">— Select Block —</option>
+                        {% for b in blocks %}
+                        <option value="{{ b.pk }}" data-label="{{ b.town.name }} — Block {{ b.name }}">
+                            {{ b.town.name }} — Block {{ b.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label fw-semibold">Plot No <span class="text-danger">*</span></label>
+                    <input type="text" id="f_plot_no" class="form-control" placeholder="e.g. 101, A-5">
+                </div>
+
+                <div class="row g-2 mb-2">
+                    <div class="col-7">
+                        <label class="form-label fw-semibold">Size <span class="text-danger">*</span></label>
+                        <input type="number" id="f_size" class="form-control" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="col-5">
+                        <label class="form-label fw-semibold">Unit</label>
+                        <select id="f_size_unit" class="form-select">
+                            <option value="MARLA">Marla</option>
+                            <option value="KANAL">Kanal</option>
+                            <option value="SQFT">Sq Ft</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label fw-semibold">Type</label>
+                    <select id="f_plot_type" class="form-select">
+                        <option value="RESIDENTIAL">Residential</option>
+                        <option value="COMMERCIAL">Commercial</option>
+                        <option value="CORNER">Corner</option>
+                    </select>
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label fw-semibold">Price (Rs.) <span class="text-danger">*</span></label>
+                    <input type="number" id="f_price" class="form-control" step="0.01" placeholder="0.00">
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label fw-semibold">Status</label>
+                    <select id="f_status" class="form-select">
+                        <option value="AVAILABLE">Available</option>
+                        <option value="HOLD">Hold</option>
+                        <option value="BOOKED">Booked</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Notes</label>
+                    <input type="text" id="f_notes" class="form-control" placeholder="Optional">
+                </div>
+
+                <div id="form_error" class="alert alert-danger d-none py-2 small"></div>
+
+                <button type="button" class="btn btn-primary w-100" onclick="addToList()">
+                    <i class="bi bi-plus-lg"></i> Add to List
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Draft List -->
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center fw-bold">
+                <span><i class="bi bi-list-check"></i> Draft List (<span id="count">0</span> plots)</span>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearAll()" id="btnClear" style="display:none;">
+                    <i class="bi bi-trash"></i> Clear All
+                </button>
+            </div>
+
+            <div class="card-body p-0">
+                <div id="empty_msg" class="text-center text-muted py-5">
+                    <i class="bi bi-inbox" style="font-size:2rem;"></i>
+                    <div class="mt-2">No plots added yet. Fill the form and click "Add to List".</div>
+                </div>
+
+                <div class="table-responsive" id="list_wrapper" style="display:none;">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>#</th>
+                                <th>Block</th>
+                                <th>Plot No</th>
+                                <th>Size</th>
+                                <th>Type</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="draft_tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card-footer" id="save_footer" style="display:none;">
+                <form method="POST" id="saveForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="plots_json" id="plots_json_input">
+                    <button type="button" class="btn btn-success px-4" onclick="saveAll()">
+                        <i class="bi bi-cloud-upload"></i> Save All Plots to Database
+                    </button>
+                    <span class="text-muted small ms-2" id="save_count_label"></span>
+                </form>
+            </div>
+        </div>
+    </div>
+{% if existing_plots %}
+<div class="card mt-4">
+    <div class="card-header fw-bold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-list-ul"></i> Existing Plots</span>
+        <span class="badge bg-secondary">{{ existing_plots|length }} plots</span>
+    </div>
+    <div class="card-body p-0" style="max-height: 60vh; overflow-y: auto;">
+        <table class="table table-hover table-sm align-middle mb-0">
+            <thead class="table-dark sticky-top">
+                <tr>
+                    <th>#</th>
+                    <th>Plot No</th>
+                    <th>Block</th>
+                    <th>Size</th>
+                    <th>Type</th>
+                    <th>Price</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in existing_plots %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td class="fw-semibold">{{ p.plot_no }}</td>
+                    <td>{{ p.block.name }}</td>
+                    <td>{{ p.size }} {{ p.size_unit }}</td>
+                    <td>{{ p.get_plot_type_display }}</td>
+                    <td>{{ p.price|floatformat:0 }}</td>
+                    <td>
+                        <span class="badge
+                            {% if p.status == 'AVAILABLE' %}bg-success
+                            {% elif p.status == 'BOOKED' %}bg-warning text-dark
+                            {% elif p.status == 'SOLD' %}bg-danger
+                            {% elif p.status == 'HOLD' %}bg-secondary
+                            {% else %}bg-dark{% endif %}">
+                            {{ p.status }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'development:plot_edit' p.pk %}"
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let draftPlots = [];
+
+function addToList() {
+    const errorEl = document.getElementById('form_error');
+    errorEl.classList.add('d-none');
+
+    const block     = document.getElementById('f_block').value;
+    const blockLabel= document.getElementById('f_block').selectedOptions[0]?.dataset.label || '';
+    const plot_no   = document.getElementById('f_plot_no').value.trim();
+    const size      = document.getElementById('f_size').value.trim();
+    const size_unit = document.getElementById('f_size_unit').value;
+    const plot_type = document.getElementById('f_plot_type').value;
+    const price     = document.getElementById('f_price').value.trim();
+    const status    = document.getElementById('f_status').value;
+    const notes     = document.getElementById('f_notes').value.trim();
+
+    // Validate
+    if (!block) { showError('Please select a block.'); return; }
+    if (!plot_no) { showError('Plot No is required.'); return; }
+    if (!size || parseFloat(size) <= 0) { showError('Size must be greater than 0.'); return; }
+    if (!price || parseFloat(price) <= 0) { showError('Price must be greater than 0.'); return; }
+
+    // Check duplicate plot_no in same block within draft
+    const dup = draftPlots.find(p => p.block === block && p.plot_no === plot_no);
+    if (dup) { showError(`Plot No "${plot_no}" already exists in draft for this block.`); return; }
+
+    draftPlots.push({ block, block_label: blockLabel, plot_no, size, size_unit, plot_type, price, status, notes });
+
+    renderList();
+
+    // Clear only plot_no and notes; keep other values for fast entry
+    document.getElementById('f_plot_no').value = '';
+    document.getElementById('f_notes').value   = '';
+    document.getElementById('f_plot_no').focus();
+}
+
+function removeFromList(index) {
+    draftPlots.splice(index, 1);
+    renderList();
+}
+
+function clearAll() {
+    if (!confirm('Remove all plots from draft list?')) return;
+    draftPlots = [];
+    renderList();
+}
+
+function renderList() {
+    const tbody      = document.getElementById('draft_tbody');
+    const emptyMsg   = document.getElementById('empty_msg');
+    const listWrap   = document.getElementById('list_wrapper');
+    const saveFooter = document.getElementById('save_footer');
+    const btnClear   = document.getElementById('btnClear');
+    const countEl    = document.getElementById('count');
+    const saveLabel  = document.getElementById('save_count_label');
+
+    countEl.textContent = draftPlots.length;
+
+    if (draftPlots.length === 0) {
+        emptyMsg.style.display   = 'block';
+        listWrap.style.display   = 'none';
+        saveFooter.style.display = 'none';
+        btnClear.style.display   = 'none';
+        return;
+    }
+
+    emptyMsg.style.display   = 'none';
+    listWrap.style.display   = 'block';
+    saveFooter.style.display = 'block';
+    btnClear.style.display   = 'inline-block';
+    saveLabel.textContent    = `${draftPlots.length} plot(s) ready to save`;
+
+    tbody.innerHTML = draftPlots.map((p, i) => `
+        <tr>
+            <td>${i + 1}</td>
+            <td class="small">${p.block_label}</td>
+            <td class="fw-semibold">${p.plot_no}</td>
+            <td>${p.size} ${p.size_unit}</td>
+            <td><span class="badge ${typeBadge(p.plot_type)}">${p.plot_type}</span></td>
+            <td>${Number(p.price).toLocaleString()}</td>
+            <td><span class="badge ${statusBadge(p.status)}">${p.status}</span></td>
+            <td>
+                <button type="button" class="btn btn-sm btn-outline-danger py-0"
+                        onclick="removeFromList(${i})">
+                    <i class="bi bi-x"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function saveAll() {
+    if (draftPlots.length === 0) { alert('No plots in list.'); return; }
+    if (!confirm(`Save ${draftPlots.length} plot(s) to the database?`)) return;
+    document.getElementById('plots_json_input').value = JSON.stringify(draftPlots);
+    document.getElementById('saveForm').submit();
+}
+
+function showError(msg) {
+    const el = document.getElementById('form_error');
+    el.textContent = msg;
+    el.classList.remove('d-none');
+}
+
+function typeBadge(t) {
+    if (t === 'COMMERCIAL') return 'bg-warning text-dark';
+    if (t === 'CORNER')     return 'bg-info text-dark';
+    return 'bg-primary';
+}
+
+function statusBadge(s) {
+    if (s === 'AVAILABLE') return 'bg-success';
+    if (s === 'HOLD')      return 'bg-secondary';
+    return 'bg-warning text-dark';
+}
+
+// Allow Enter key on plot_no to trigger add
+document.getElementById('f_plot_no').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); addToList(); }
+});
+</script>
+{% endblock %}

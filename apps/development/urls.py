@@ -87,5 +87,22 @@ urlpatterns = [
     path('maps/<int:pk>/pdf-viewer/',
          views.map_pdf_viewer,
          name='map_pdf_viewer'),
+     
+     path('plots/bulk-add/',
+     views.plot_bulk_add,
+     name='plot_bulk_add'),
+     # ── Plot Availability Check ─────────────────────────
+    path('plots/check-availability/',
+         views.check_plot_availability,
+         name='check_plot_availability'),
+         # ── Town Name Availability Check ────────────────────
+    path('towns/check-name/',
+         views.check_town_name,
+         name='check_town_name'),
+
+     # ── Block Name Availability Check ───────────────────
+    path('blocks/check-name/',
+         views.check_block_name,
+         name='check_block_name'),
 
 ]

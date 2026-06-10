@@ -7,13 +7,32 @@
 <!-- Summary Row -->
 <div class="row g-3 mb-4">
 
-    <div class="col-md-4">
+<div class="col-md-4">
         <div class="card h-100">
             <div class="card-body">
                 <div class="text-muted small mb-2">Customer</div>
-                <div class="fw-bold fs-5">{{ booking.customer.name }}</div>
-                <div class="text-muted">{{ booking.customer.contact }}</div>
-                <div class="text-muted">{{ booking.customer.cnic|default:"" }}</div>
+                <div class="d-flex align-items-center gap-3">
+                    {% if booking.customer.photo %}
+                    <img src="{{ booking.customer.photo.url }}"
+                         alt="{{ booking.customer.name }}"
+                         style="width:96px; height:96px; object-fit:cover;
+                                border-radius:6px; border:2px solid #dee2e6;
+                                flex-shrink:0;">
+                    {% else %}
+                    <div style="width:96px; height:96px; border-radius:6px;
+                                border:2px solid #dee2e6; background:#f8f9fa;
+                                display:flex; align-items:center;
+                                justify-content:center; color:#adb5bd;
+                                flex-shrink:0;">
+                        <i class="bi bi-person-fill" style="font-size:2.5rem;"></i>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <div class="fw-bold fs-5">{{ booking.customer.name }}</div>
+                        <div class="text-muted">{{ booking.customer.contact }}</div>
+                        <div class="text-muted">{{ booking.customer.cnic|default:"" }}</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -116,13 +135,18 @@
                 <div class="d-flex justify-content-between mb-3">
                     <h6 class="mb-0">Payment Plan</h6>
                     {% if booking.status == 'ACTIVE' %}
-                    <button class="btn btn-sm btn-primary"
-                            data-bs-toggle="modal"
-                            data-bs-target="#addPlanModal">
-                        <i class="bi bi-plus-circle"></i> Add Installment
-                    </button>
+                        <button class="btn btn-sm btn-primary"
+                                data-bs-toggle="modal"
+                                data-bs-target="#addPlanModal">
+                            <i class="bi bi-plus-circle"></i> Add Installment
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary"
+                                data-bs-toggle="modal"
+                                data-bs-target="#bulkPlanModal">
+                            <i class="bi bi-calendar3"></i> Auto Plan
+                        </button>
                     {% endif %}
-                </div>
+                </div>  
 
                 <table class="table table-sm align-middle">
                     <thead class="table-light">
@@ -366,7 +390,111 @@
         </div>
     </div>
 </div>
+    <!-- ======================== -->
+    <!-- MODAL: Bulk Installment  -->
+    <!-- ======================== -->
+    <div class="modal fade" id="bulkPlanModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title">
+                        <i class="bi bi-calendar3"></i> Auto Installment Plan
+                    </h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
 
+                    <!-- Step 1: Config -->
+                    <div id="planConfig">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Plan Type</label>
+                                <select id="planType" class="form-select">
+                                    <option value="monthly">Monthly (every 1 month)</option>
+                                    <option value="quarterly">Quarterly (every 3 months)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Number of Installments</label>
+                                <input type="number" id="numInstallments" class="form-control"
+                                    min="1" max="120" value="12">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Starting Month</label>
+                                <input type="month" id="startMonth" class="form-control">
+                            </div>
+                            <div class="col-12">
+                                <div class="alert alert-info mb-0 py-2">
+                                    <strong>Remaining Balance:</strong>
+                                    Rs. <span id="remainingBalance">{{ booking.balance|floatformat:0 }}</span>
+                                    &nbsp;|&nbsp;
+                                    <strong>Each installment date:</strong> 5th of the month
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <button type="button" class="btn btn-primary"
+                                        onclick="generatePlan()">
+                                    <i class="bi bi-gear"></i> Generate Plan
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Preview Table (editable) -->
+                    <div id="planPreview" style="display:none;" class="mt-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0 fw-bold">Preview & Edit Before Saving</h6>
+                            <div>
+                                <span class="text-muted small me-3">
+                                    Total: Rs. <span id="previewTotal" class="fw-bold text-primary">0</span>
+                                </span>
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        onclick="resetPlan()">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Reset
+                                </button>
+                            </div>
+                        </div>
+                        <div class="table-responsive" style="max-height:380px; overflow-y:auto;">
+                            <table class="table table-sm table-bordered align-middle">
+                                <thead class="table-dark" style="position:sticky; top:0;">
+                                    <tr>
+                                        <th style="width:50px;">#</th>
+                                        <th style="width:160px;">Due Date</th>
+                                        <th style="width:180px;">Amount (Rs.)</th>
+                                        <th>Notes</th>
+                                        <th style="width:60px;">Del</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="planTableBody"></tbody>
+                                <tfoot class="table-light fw-bold">
+                                    <tr>
+                                        <td colspan="2" class="text-end">Total</td>
+                                        <td>Rs. <span id="footerTotal">0</span></td>
+                                        <td colspan="2"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <div class="mt-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    onclick="addBlankRow()">
+                                <i class="bi bi-plus"></i> Add Row
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer" id="planFooter" style="display:none!important;">
+                    <button type="button" class="btn btn-outline-secondary"
+                            data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success"
+                            onclick="saveAllInstallments()">
+                        <i class="bi bi-check-circle"></i> Save All Installments
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 {% endblock %}
 
 {% block extra_js %}
@@ -376,4 +504,218 @@ function toggleCheque(sel) {
         sel.value === 'CHEQUE' ? 'block' : 'none';
 }
 </script>
+<script>
+// ── Bulk Plan Generator ───────────────────────────────
+
+const BOOKING_PK      = {{ booking.pk }};
+const PLAN_ADD_URL    = "{% url 'sales:plan_add' booking.pk %}";
+const CSRF_TOKEN      = "{{ csrf_token }}";
+const NEXT_INST_NO    = {{ payment_plans.count|add:1 }};
+let   rowCounter      = 0;
+
+// Set default start month to next month
+window.addEventListener('DOMContentLoaded', () => {
+    const d    = new Date();
+    d.setMonth(d.getMonth() + 1);
+    const yyyy = d.getFullYear();
+    const mm   = String(d.getMonth() + 1).padStart(2, '0');
+    document.getElementById('startMonth').value = `${yyyy}-${mm}`;
+});
+
+function generatePlan() {
+    const type    = document.getElementById('planType').value;
+    const num     = parseInt(document.getElementById('numInstallments').value);
+    const start   = document.getElementById('startMonth').value;
+    const balance = parseFloat(
+        document.getElementById('remainingBalance').textContent.replace(/,/g, '')
+    );
+
+    if (!num || num < 1) {
+        alert('Please enter a valid number of installments.');
+        return;
+    }
+    if (!start) {
+        alert('Please select a starting month.');
+        return;
+    }
+    if (balance <= 0) {
+        alert('No remaining balance to create installments for.');
+        return;
+    }
+
+    const baseAmount  = Math.floor(balance / num);
+    const remainder   = Math.round((balance - baseAmount * num) * 100) / 100;
+    const [yr, mo]    = start.split('-').map(Number);
+    const tbody       = document.getElementById('planTableBody');
+    tbody.innerHTML   = '';
+    rowCounter        = 0;
+
+    for (let i = 0; i < num; i++) {
+        let date = new Date(yr, mo - 1, 5);
+        if (type === 'monthly') {
+            date = new Date(yr, mo - 1 + i, 5);
+        } else {
+            date = new Date(yr, mo - 1 + (i * 3), 5);
+        }
+        const dateStr = formatDate(date);
+        const amount  = (i === num - 1)
+            ? (baseAmount + remainder).toFixed(2)
+            : baseAmount.toFixed(2);
+        addRow(i + 1, dateStr, amount, '');
+    }
+
+    updateTotals();
+    document.getElementById('planPreview').style.display = 'block';
+    document.getElementById('planFooter').style.display  = 'flex!important';
+    // force show footer
+    document.getElementById('planFooter').removeAttribute('style');
+}
+
+function formatDate(d) {
+    const yyyy = d.getFullYear();
+    const mm   = String(d.getMonth() + 1).padStart(2, '0');
+    const dd   = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+function addRow(num, date, amount, notes) {
+    rowCounter++;
+    const id  = rowCounter;
+    const tr  = document.createElement('tr');
+    tr.id     = `row_${id}`;
+    tr.innerHTML = `
+        <td class="text-center fw-semibold row-num">${num}</td>
+        <td>
+            <input type="date" class="form-control form-control-sm inst-date"
+                   value="${date}" onchange="updateTotals()">
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm inst-amount"
+                   value="${amount}" step="0.01" min="0" onchange="updateTotals()">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm inst-notes"
+                   value="${notes}" placeholder="Optional">
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-sm btn-outline-danger"
+                    onclick="deleteRow(${id})">
+                <i class="bi bi-x"></i>
+            </button>
+        </td>
+    `;
+    document.getElementById('planTableBody').appendChild(tr);
+}
+
+function addBlankRow() {
+    const rows   = document.querySelectorAll('#planTableBody tr');
+    const newNum = rows.length + 1;
+
+    // Get last date and add 1 month
+    let dateStr = '';
+    if (rows.length > 0) {
+        const lastDate = rows[rows.length - 1].querySelector('.inst-date').value;
+        if (lastDate) {
+            const d = new Date(lastDate);
+            d.setMonth(d.getMonth() + 1);
+            dateStr = formatDate(d);
+        }
+    }
+    addRow(newNum, dateStr, '0', '');
+    updateTotals();
+    renumberRows();
+}
+
+function deleteRow(id) {
+    const row = document.getElementById(`row_${id}`);
+    if (row) row.remove();
+    renumberRows();
+    updateTotals();
+}
+
+function renumberRows() {
+    document.querySelectorAll('#planTableBody tr').forEach((tr, i) => {
+        const numCell = tr.querySelector('.row-num');
+        if (numCell) numCell.textContent = i + 1;
+    });
+}
+
+function updateTotals() {
+    let total = 0;
+    document.querySelectorAll('.inst-amount').forEach(inp => {
+        total += parseFloat(inp.value) || 0;
+    });
+    const formatted = total.toLocaleString('en-PK', { maximumFractionDigits: 2 });
+    document.getElementById('previewTotal').textContent = formatted;
+    document.getElementById('footerTotal').textContent  = formatted;
+}
+
+function resetPlan() {
+    document.getElementById('planTableBody').innerHTML = '';
+    document.getElementById('planPreview').style.display = 'none';
+    document.getElementById('planFooter').style.display  = 'none';
+}
+
+async function saveAllInstallments() {
+    const rows = document.querySelectorAll('#planTableBody tr');
+    if (rows.length === 0) {
+        alert('No installments to save.');
+        return;
+    }
+
+    const btn = document.querySelector('#bulkPlanModal .btn-success');
+    btn.disabled    = true;
+    btn.textContent = 'Saving...';
+
+    let instNo  = NEXT_INST_NO;
+    let success = 0;
+    let failed  = 0;
+
+    for (const row of rows) {
+        const date   = row.querySelector('.inst-date').value;
+        const amount = row.querySelector('.inst-amount').value;
+        const notes  = row.querySelector('.inst-notes').value;
+
+        if (!date || !amount || parseFloat(amount) <= 0) {
+            failed++;
+            continue;
+        }
+
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', CSRF_TOKEN);
+        formData.append('installment_no', instNo);
+        formData.append('due_date', date);
+        formData.append('amount', amount);
+        formData.append('notes', notes);
+
+        try {
+            const resp = await fetch(PLAN_ADD_URL, {
+                method: 'POST',
+                body:   formData,
+            });
+            if (resp.ok || resp.redirected) {
+                success++;
+                instNo++;
+            } else {
+                failed++;
+            }
+        } catch (e) {
+            failed++;
+        }
+    }
+
+    btn.disabled    = false;
+    btn.textContent = 'Save All Installments';
+
+    if (failed === 0) {
+        alert(`✓ All ${success} installments saved successfully!`);
+    } else {
+        alert(`Saved: ${success} | Failed: ${failed}. Please check failed rows.`);
+    }
+
+    // Reload page to show new installments
+    window.location.reload();
+}
+</script>
+
 {% endblock %}

@@ -61,7 +61,77 @@ def login_view(request):
 # ======================================================
 
 @login_required
+@login_required
 def dashboard(request):
+    today = date.today()
+    
+    # ── Existing KPIs ──────────────────────────────────
+    total_plots     = Plot.objects.filter(is_deleted=False).count()
+    available_plots = Plot.objects.filter(is_deleted=False, status='AVAILABLE').count()
+    bookings        = Booking.objects.filter(is_deleted=False)
+    active_bookings = bookings.filter(status='ACTIVE').count()
+    total_received  = Receipt.objects.filter(is_deleted=False).aggregate(total=Sum('amount'))['total'] or 0
+    receipts_today  = Receipt.objects.filter(is_deleted=False, receipt_date=today).count()
+
+    overdue_installments  = PaymentPlan.objects.filter(status='OVERDUE')
+    due_soon_installments = PaymentPlan.objects.filter(
+        status='PENDING',
+        due_date__gt=today,
+        due_date__lte=today + timedelta(days=7),
+    )
+    pending_refunds = Cancellation.objects.filter(refund_amount__gt=0)
+    red_count       = overdue_installments.count() + pending_refunds.count()
+    yellow_count    = due_soon_installments.count()
+
+    # ── Towns with stats ───────────────────────────────
+    from apps.development.models import Town, Block, TownMap
+    from django.db.models import Count, Q
+
+    towns_data = []
+    towns = Town.objects.filter(is_deleted=False).prefetch_related('blocks', 'maps')
+
+    for town in towns:
+        # Get all plots for this town
+        town_plots = Plot.objects.filter(
+            block__town=town,
+            is_deleted=False
+        )
+        total   = town_plots.count()
+        sold    = town_plots.filter(status='SOLD').count()
+        booked  = town_plots.filter(status='BOOKED').count()
+        avail   = town_plots.filter(status='AVAILABLE').count()
+        hold    = town_plots.filter(status='HOLD').count()
+
+        # Get town image from maps
+        town_image = town.maps.filter(
+            map_type='IMAGE',
+            is_active=True
+        ).first()
+
+        towns_data.append({
+            'town':       town,
+            'total':      total,
+            'sold':       sold,
+            'booked':     booked,
+            'available':  avail,
+            'hold':       hold,
+            'image':      town_image,
+        })
+
+    context = {
+        'total_plots':            total_plots,
+        'available_plots':        available_plots,
+        'active_bookings':        active_bookings,
+        'total_received':         total_received,
+        'receipts_today':         receipts_today,
+        'red_count':              red_count,
+        'yellow_count':           yellow_count,
+        'overdue_installments':   overdue_installments,
+        'pending_refunds':        pending_refunds,
+        'due_soon_installments':  due_soon_installments,
+        'towns_data':             towns_data,
+    }
+    return render(request, 'core/dashboard.html', context)
     today = date.today()
     total_plots = Plot.objects.filter(is_deleted=False).count()
     available_plots = Plot.objects.filter(is_deleted=False, status='AVAILABLE').count()

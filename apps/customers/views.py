@@ -23,7 +23,7 @@ def customer_list(request):
 @login_required
 def customer_add(request):
     if request.method == 'POST':
-        Customer.objects.create(
+        customer = Customer.objects.create(
             name       = request.POST.get('name'),
             name_urdu  = request.POST.get('name_urdu', ''),
             contact    = request.POST.get('contact'),
@@ -33,6 +33,9 @@ def customer_add(request):
             email      = request.POST.get('email', ''),
             created_by = request.user,
         )
+        if request.FILES.get('photo'):
+            customer.photo = request.FILES['photo']
+            customer.save()
         messages.success(request, 'Customer added successfully.')
         return redirect('customers:customer_list')
 
@@ -53,6 +56,8 @@ def customer_edit(request, pk):
         customer.address   = request.POST.get('address', '')
         customer.city      = request.POST.get('city', '')
         customer.email     = request.POST.get('email', '')
+        if request.FILES.get('photo'):
+            customer.photo = request.FILES['photo']
         customer.save()
         messages.success(request, 'Customer updated.')
         return redirect('customers:customer_list')
@@ -70,3 +75,14 @@ def customer_delete(request, pk):
     customer.save()
     messages.success(request, 'Customer deleted.')
     return redirect('customers:customer_list')
+
+@login_required
+def customer_detail(request, pk):
+    customer = get_object_or_404(Customer, pk=pk, is_deleted=False)
+    bookings = customer.bookings.filter(is_deleted=False).select_related(
+        'plot__block__town'
+    ).order_by('-created_at')
+    return render(request, 'customers/customer_detail.html', {
+        'customer': customer,
+        'bookings': bookings,
+    })
