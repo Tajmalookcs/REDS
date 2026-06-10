@@ -137,7 +137,58 @@
             </div>
         </div>
     </div>
-
+{% if existing_plots %}
+<div class="card mt-4">
+    <div class="card-header fw-bold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-list-ul"></i> Existing Plots</span>
+        <span class="badge bg-secondary">{{ existing_plots|length }} plots</span>
+    </div>
+    <div class="card-body p-0" style="max-height: 60vh; overflow-y: auto;">
+        <table class="table table-hover table-sm align-middle mb-0">
+            <thead class="table-dark sticky-top">
+                <tr>
+                    <th>#</th>
+                    <th>Plot No</th>
+                    <th>Block</th>
+                    <th>Size</th>
+                    <th>Type</th>
+                    <th>Price</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in existing_plots %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td class="fw-semibold">{{ p.plot_no }}</td>
+                    <td>{{ p.block.name }}</td>
+                    <td>{{ p.size }} {{ p.size_unit }}</td>
+                    <td>{{ p.get_plot_type_display }}</td>
+                    <td>{{ p.price|floatformat:0 }}</td>
+                    <td>
+                        <span class="badge
+                            {% if p.status == 'AVAILABLE' %}bg-success
+                            {% elif p.status == 'BOOKED' %}bg-warning text-dark
+                            {% elif p.status == 'SOLD' %}bg-danger
+                            {% elif p.status == 'HOLD' %}bg-secondary
+                            {% else %}bg-dark{% endif %}">
+                            {{ p.status }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'development:plot_edit' p.pk %}"
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
 </div>
 {% endblock %}
 
