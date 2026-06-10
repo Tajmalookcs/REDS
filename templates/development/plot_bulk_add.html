@@ -22,10 +22,11 @@
 
                 <div class="mb-2">
                     <label class="form-label fw-semibold">Block <span class="text-danger">*</span></label>
-                    <select id="f_block" class="form-select">
+                    <select id="f_block" class="form-select" onchange="syncBlock(this)">
                         <option value="">— Select Block —</option>
                         {% for b in blocks %}
-                        <option value="{{ b.pk }}" data-label="{{ b.town.name }} — Block {{ b.name }}">
+                        <option value="{{ b.pk }}" data-label="{{ b.town.name }} — Block {{ b.name }}"
+                            {% if selected_block_id == b.pk|stringformat:"s" %}selected{% endif %}>
                             {{ b.town.name }} — Block {{ b.name }}
                         </option>
                         {% endfor %}
@@ -137,10 +138,14 @@
             </div>
         </div>
     </div>
+
+</div>
+
+<!-- Existing Plots — shown below when a block is selected -->
 {% if existing_plots %}
 <div class="card mt-4">
     <div class="card-header fw-bold d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-list-ul"></i> Existing Plots</span>
+        <span><i class="bi bi-list-ul"></i> Existing Plots in Selected Block</span>
         <span class="badge bg-secondary">{{ existing_plots|length }} plots</span>
     </div>
     <div class="card-body p-0" style="max-height: 60vh; overflow-y: auto;">
@@ -189,34 +194,80 @@
     </div>
 </div>
 {% endif %}
-</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
 let draftPlots = [];
 
+// ── Sync block selection with URL to load existing plots ──
+function syncBlock(sel) {
+    const blockId = sel.value;
+    const url = new URL(window.location.href);
+    if (blockId) {
+        url.searchParams.set('block', blockId);
+    } else {
+        url.searchParams.delete('block');
+    }
+    // Save draft before reload so it isn't lost
+    if (draftPlots.length > 0) {
+        sessionStorage.setItem('bulk_draft', JSON.stringify(draftPlots));
+    }
+    window.location.href = url.toString();
+}
+
+// ── On page load: restore draft and pre-select block ──
+document.addEventListener('DOMContentLoaded', () => {
+    const preBlock = "{{ selected_block_id }}";
+    if (preBlock) {
+        document.getElementById('f_block').value = preBlock;
+    }
+
+    const saved = sessionStorage.getItem('bulk_draft');
+    if (saved) {
+        try {
+            draftPlots = JSON.parse(saved);
+            renderList();
+            sessionStorage.removeItem('bulk_draft');
+        } catch(e) {}
+    }
+});
+
+function nextPlotNo(plotNo) {
+    if (!plotNo) return '';
+
+    // Match pattern: optional prefix (letters/dash/space) + number at end
+    const match = plotNo.match(/^(.*?)(\d+)$/);
+    if (!match) return '';  // can't increment, clear it
+
+    const prefix = match[1];  // e.g. "F", "D", "A-", "B-", ""
+    const num    = parseInt(match[2], 10);
+    const padLen = match[2].length;  // preserve zero-padding like 01 -> 02
+
+    const nextNum = String(num + 1).padStart(padLen, '0');
+    return prefix + nextNum;
+}
+
 function addToList() {
     const errorEl = document.getElementById('form_error');
     errorEl.classList.add('d-none');
 
-    const block     = document.getElementById('f_block').value;
-    const blockLabel= document.getElementById('f_block').selectedOptions[0]?.dataset.label || '';
-    const plot_no   = document.getElementById('f_plot_no').value.trim();
-    const size      = document.getElementById('f_size').value.trim();
-    const size_unit = document.getElementById('f_size_unit').value;
-    const plot_type = document.getElementById('f_plot_type').value;
-    const price     = document.getElementById('f_price').value.trim();
-    const status    = document.getElementById('f_status').value;
-    const notes     = document.getElementById('f_notes').value.trim();
+    const block      = document.getElementById('f_block').value;
+    const blockLabel = document.getElementById('f_block').selectedOptions[0]?.dataset.label || '';
+    const plot_no    = document.getElementById('f_plot_no').value.trim();
+    const size       = document.getElementById('f_size').value.trim();
+    const size_unit  = document.getElementById('f_size_unit').value;
+    const plot_type  = document.getElementById('f_plot_type').value;
+    const price      = document.getElementById('f_price').value.trim();
+    const status     = document.getElementById('f_status').value;
+    const notes      = document.getElementById('f_notes').value.trim();
 
-    // Validate
-    if (!block) { showError('Please select a block.'); return; }
-    if (!plot_no) { showError('Plot No is required.'); return; }
-    if (!size || parseFloat(size) <= 0) { showError('Size must be greater than 0.'); return; }
-    if (!price || parseFloat(price) <= 0) { showError('Price must be greater than 0.'); return; }
+    if (!block)                          { showError('Please select a block.'); return; }
+    if (!plot_no)                        { showError('Plot No is required.'); return; }
+    if (!size || parseFloat(size) <= 0)  { showError('Size must be greater than 0.'); return; }
+    if (!price || parseFloat(price) <= 0){ showError('Price must be greater than 0.'); return; }
 
-    // Check duplicate plot_no in same block within draft
     const dup = draftPlots.find(p => p.block === block && p.plot_no === plot_no);
     if (dup) { showError(`Plot No "${plot_no}" already exists in draft for this block.`); return; }
 
@@ -224,8 +275,8 @@ function addToList() {
 
     renderList();
 
-    // Clear only plot_no and notes; keep other values for fast entry
-    document.getElementById('f_plot_no').value = '';
+    // Auto-increment plot number, clear only notes
+    document.getElementById('f_plot_no').value = nextPlotNo(plot_no);
     document.getElementById('f_notes').value   = '';
     document.getElementById('f_plot_no').focus();
 }
@@ -310,7 +361,6 @@ function statusBadge(s) {
     return 'bg-warning text-dark';
 }
 
-// Allow Enter key on plot_no to trigger add
 document.getElementById('f_plot_no').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); addToList(); }
 });
