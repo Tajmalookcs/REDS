@@ -129,6 +129,13 @@
         .status-COMPLETED { background: #d1e7dd; color: #0a3622; }
         .status-CANCELLED { background: #f8d7da; color: #58151c; }
 
+        .receipts-table th { background: #1a1a2e; color: #fff; }
+        .receipts-table tfoot td {
+            font-weight: bold;
+            background: #f0f0f0;
+            border-top: 2px solid #000;
+        }
+
         @media print {
             body { margin: 0; }
             .no-print { display: none; }
@@ -157,7 +164,8 @@
 
     <!-- Header -->
     <div class="header">
-        <h2>{{ business.company_name }}</h2>
+        <h2>{{ booking.plot.block.town.name }}</h2>
+        <!-- <h2>{{ business.company_name }}</h2>
         {% if business.address %}
         <p>{{ business.address }}</p>
         {% endif %}
@@ -173,39 +181,12 @@
             {% if business.ntn_number %}NTN: {{ business.ntn_number }}{% endif %}
             {% if business.strn_number %}&nbsp;|&nbsp;STRN: {{ business.strn_number }}{% endif %}
         </p>
-        {% endif %}
+        {% endif %} -->
     </div>
 
-    <div class="doc-title">Booking Confirmation</div>
-
-    <!-- Booking Info -->
-    <div class="section-title">Booking Details</div>
-    <div class="grid">
-        <div class="row">
-            <span class="label">Booking No:</span>
-            <span class="value">{{ booking.booking_no }}</span>
-        </div>
-        <div class="row">
-            <span class="label">Booking Date:</span>
-            <span class="value">{{ booking.booking_date }}</span>
-        </div>
-        <div class="row">
-            <span class="label">Status:</span>
-            <span class="value">
-                <span class="status-badge status-{{ booking.status }}">
-                    {{ booking.status }}
-                </span>
-            </span>
-        </div>
-        <div class="row">
-            <span class="label">Agent:</span>
-            <span class="value">{{ booking.agent.name|default:"—" }}</span>
-        </div>
-    </div>
+    <div class="doc-title">Booking Details</div>
 
     <!-- Customer Info -->
-    <div class="section-title">Customer Details</div>
-<!-- Customer Info -->
     <div class="section-title">Customer Details</div>
     <div style="display:flex; align-items:flex-start; gap:16px; margin-bottom:8px;">
 
@@ -254,16 +235,14 @@
         </div>
 
     </div>
+
+    <!-- Plot Info -->
 <!-- Plot Info -->
     <div class="section-title">Plot Details</div>
     <div class="grid">
         <div class="row">
-            <span class="label">Town:</span>
-            <span class="value">{{ booking.plot.block.town.name }}</span>
-        </div>
-        <div class="row">
-            <span class="label">Block:</span>
-            <span class="value">{{ booking.plot.block.name }}</span>
+            <span class="label">Town / Block:</span>
+            <span class="value">{{ booking.plot.block.town.name }} / Block – {{ booking.plot.block.name }}</span>
         </div>
         <div class="row">
             <span class="label">Plot No:</span>
@@ -275,50 +254,69 @@
         </div>
         <div class="row">
             <span class="label">Type:</span>
-            <span class="value">{{ booking.plot.get_type_display }}</span>
+            <span class="value">{{ booking.plot.get_plot_type_display }}</span>
         </div>
         <div class="row">
             <span class="label">Booking Date:</span>
-            <span class="value">{{ booking.booking_date }}</span>
+            <span class="value">{{ booking.booking_date|date:"F d, Y" }}</span>
         </div>
         <div class="row">
-            <span class="label">Down Payment:</span>
-            <span class="value">Rs. {{ booking.down_payment|floatformat:0 }}</span>
+            <span class="label">Total Amount:</span>
+            <span class="value">Rs. {{ booking.total_price|floatformat:0|intcomma }}</span>
         </div>
         <div class="row">
-            <span class="label">Agent:</span>
-            <span class="value">{{ booking.agent.name|default:"—" }}</span>
+            <span class="label">Discount:</span>
+            <span class="value">Rs. {{ booking.discount|floatformat:0|intcomma }}</span>
+        </div>
+        <div class="row">
+            <span class="label">Net Price:</span>
+            <span class="value">Rs. {{ booking.net_price|floatformat:0|intcomma }}</span>
+        </div>
+        <div class="row">
+            <span class="label">Total Received:</span>
+            <span class="value">Rs. {{ total_paid|floatformat:0|intcomma }}</span>
+        </div>
+        <div class="row">
+            <span class="label">Balance Due:</span>
+            <span class="value"><strong>Rs. {{ balance|floatformat:0|intcomma }}</strong></span>
         </div>
     </div>
 
-    <!-- Amount Summary -->
-    <div class="section-title">Payment Summary</div>
-    <div class="amount-summary">
-        <div class="amount-row">
-            <span>Total Price</span>
-            <span>Rs. {{ booking.total_price|floatformat:0|intcomma }}</span>
-        </div>
-        <div class="amount-row">
-            <span>Discount</span>
-            <span>Rs. {{ booking.discount|floatformat:0|intcomma }}</span>
-        </div>
-        <div class="amount-row">
-            <span>Net Price</span>
-            <span>Rs. {{ booking.net_price|floatformat:0|intcomma }}</span>
-        </div>
-        <div class="amount-row">
-            <span>Down Payment</span>
-            <span>Rs. {{ booking.down_payment|floatformat:0|intcomma }}</span>
-        </div>
-        <div class="amount-row">
-            <span>Total Received</span>
-            <span>Rs. {{ total_paid|floatformat:0|intcomma }}</span>
-        </div>
-        <div class="amount-row total">
-            <span>Balance Due</span>
-            <span>Rs. {{ balance|floatformat:0|intcomma }}</span>
-        </div>
-    </div>
+    <!-- Amount Received Section -->
+    {% if receipts %}
+    <div class="section-title">Amount Received</div>
+    <table class="receipts-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Receipt No</th>
+                <th>Date</th>
+                <th>Total Amount</th>
+                <th>Amount Received</th>
+                <th>Balance Amount</th>
+            </tr>
+        </thead>
+            <tbody>
+                {% for r in receipts %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><strong>{{ r.receipt_no }}</strong></td>
+                    <td>{{ r.receipt_date }}</td>
+                    <td>Rs. {{ booking.net_price|floatformat:0|intcomma }}</td>
+                    <td>Rs. {{ r.amount|floatformat:0|intcomma }}</td>
+                    <td>Rs. {{ r.running_balance|floatformat:0|intcomma }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="4" style="text-align:right;">Total</td>
+                <td>Rs. {{ total_paid|floatformat:0|intcomma }}</td>
+                <td>Rs. {{ balance|floatformat:0|intcomma }}</td>
+            </tr>
+        </tfoot>
+    </table>
+    {% endif %}
 
     <!-- Payment Plan -->
     {% if installments %}
@@ -353,14 +351,14 @@
     </div>
 
 </div>
-    <script>
-    function goBack() {
-        if (document.referrer && document.referrer !== '') {
-            window.location.href = document.referrer;
-        } else {
-            window.location.href = '/sales/bookings/{{ booking.pk }}/';
-        }
+<script>
+function goBack() {
+    if (document.referrer && document.referrer !== '') {
+        window.location.href = document.referrer;
+    } else {
+        window.location.href = '/sales/bookings/{{ booking.pk }}/';
     }
-    </script>
+}
+</script>
 </body>
 </html>

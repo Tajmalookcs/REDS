@@ -381,17 +381,30 @@ def booking_print(request, pk):
     booking      = get_object_or_404(Booking, pk=pk)
     business     = BusinessProfile.objects.first()
     installments = PaymentPlan.objects.filter(booking=booking).order_by('installment_no')
-    receipts     = Receipt.objects.filter(booking=booking)
-    total_paid   = receipts.aggregate(t=Sum('amount'))['t'] or Decimal('0')
+    receipts_qs  = Receipt.objects.filter(booking=booking, is_deleted=False).order_by('receipt_date', 'id')
+    total_paid   = receipts_qs.aggregate(t=Sum('amount'))['t'] or Decimal('0')
     balance      = booking.net_price - total_paid
+
+    # Build receipts with running balance
+    running = booking.net_price
+    receipts_with_balance = []
+    for r in receipts_qs:
+        running = running - r.amount
+        receipts_with_balance.append({
+            'receipt_no':      r.receipt_no,
+            'receipt_date':    r.receipt_date,
+            'amount':          r.amount,
+            'running_balance': running,
+        })
+
     return render(request, 'sales/booking_print.html', {
         'booking':      booking,
         'business':     business,
         'installments': installments,
+        'receipts':     receipts_with_balance,
         'total_paid':   total_paid,
         'balance':      balance,
     })
-
 
 # ======================================================
 # PLOT TRANSFER
