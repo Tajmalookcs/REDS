@@ -17,4 +17,5 @@ urlpatterns = [
     path('users/<int:pk>/password/',        views.user_change_password,  name='user_change_password'),
     path('users/<int:pk>/toggle/',          views.user_toggle,           name='user_toggle'),
     path('users/<int:pk>/delete/',          views.user_delete,           name='user_delete'),
+    path('stop-server/',                    views.stop_server,           name='stop_server'),
 ]

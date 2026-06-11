@@ -407,13 +407,17 @@
                         <span class="badge bg-secondary ms-1">{{ user.role }}</span>
                     </span>
                 </li>
-                <li class="nav-item">
+                <li class="nav-item me-1">
                     <a href="{% url 'logout' %}" class="btn btn-sm btn-outline-danger">
                         <i class="bi bi-box-arrow-right"></i> Logout
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="/shutdown/" onclick="return confirm('Shut down REDS?')">⏻ Quit</a>
+                    <a href="{% url 'stop_server' %}"
+                       class="btn btn-sm btn-danger"
+                       onclick="return confirm('Stop the REDS server?')">
+                        <i class="bi bi-power"></i> Stop
+                    </a>
                 </li>
             </ul>
 

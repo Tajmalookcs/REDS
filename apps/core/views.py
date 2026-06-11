@@ -194,6 +194,21 @@ def logout_view(request):
 
 
 # ======================================================
+# STOP SERVER
+# ======================================================
+
+@login_required
+def stop_server(request):
+    import threading, os, signal
+    def _shutdown():
+        import time
+        time.sleep(1)
+        os.kill(os.getpid(), signal.SIGTERM)
+    threading.Thread(target=_shutdown, daemon=True).start()
+    return render(request, 'core/server_stopped.html')
+
+
+# ======================================================
 # BUSINESS PROFILE
 # ======================================================
 
