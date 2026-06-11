@@ -83,11 +83,14 @@ def dashboard(request):
     yellow_count = due_soon_installments.count()
 
     # ── Towns with stats ───────────────────────────────
-    from apps.development.models import Town, Block, TownMap
+    from apps.development.models import Town, Block, TownMap, Block as _Block
     from django.db.models import Count, Q
 
+    all_towns  = Town.objects.filter(is_deleted=False).order_by('name')
+    all_blocks = _Block.objects.filter(is_deleted=False).select_related('town').order_by('town__name', 'name')
+
     towns_data = []
-    towns = Town.objects.filter(is_deleted=False).prefetch_related('blocks', 'maps')
+    towns = all_towns.prefetch_related('blocks', 'maps')
 
     for town in towns:
         # Get all plots for this town
@@ -126,11 +129,16 @@ def dashboard(request):
             .filter(is_deleted=False, status__in=['ACTIVE', 'COMPLETED'])
             .annotate(amount_received=_Sum('receipts__amount'))
     }
+    import re as _re
+    def _nat_key(d):
+        parts = _re.split(r'(\d+)', d['plot_no'])
+        return [int(p) if p.isdigit() else p.lower() for p in parts]
+
     _all_plots = (
         Plot.objects
         .filter(is_deleted=False)
         .select_related('block__town')
-        .order_by('block__town__name', 'block__name', 'plot_no')
+        .order_by('block__town__name', 'block__name')
     )
     plots_detail         = []
     plots_total_net      = 0
@@ -152,6 +160,7 @@ def dashboard(request):
             'received':  received,
             'balance':   balance,
         })
+    plots_detail.sort(key=lambda d: (d['town'], d['block'], _nat_key(d)))
     plots_total_balance = plots_total_net - plots_total_received
 
     context = {
@@ -169,6 +178,8 @@ def dashboard(request):
         'plots_total_net':        plots_total_net,
         'plots_total_received':   plots_total_received,
         'plots_total_balance':    plots_total_balance,
+        'all_towns':              all_towns,
+        'all_blocks':             all_blocks,
     }
     return render(request, 'core/dashboard.html', context)
 

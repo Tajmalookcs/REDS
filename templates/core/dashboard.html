@@ -65,14 +65,43 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <!-- Status Filter -->
-                <div class="d-flex flex-wrap gap-2 mb-3">
-                    <button class="btn btn-sm btn-dark plot-filter active" data-filter="ALL">All</button>
-                    <button class="btn btn-sm btn-outline-success plot-filter" data-filter="AVAILABLE">Available</button>
-                    <button class="btn btn-sm btn-outline-warning plot-filter" data-filter="BOOKED">Booked</button>
-                    <button class="btn btn-sm btn-outline-danger plot-filter" data-filter="SOLD">Sold</button>
-                    <button class="btn btn-sm btn-outline-secondary plot-filter" data-filter="HOLD">Hold</button>
-                    <button class="btn btn-sm btn-outline-secondary plot-filter" data-filter="CANCELLED">Cancelled</button>
+                <!-- Filters -->
+                <div class="row g-2 mb-3 align-items-end">
+                    <div class="col-md-3">
+                        <select id="filterTown" class="form-select form-select-sm" onchange="applyPlotFilters()">
+                            <option value="">— All Towns —</option>
+                            {% for t in all_towns %}
+                            <option value="{{ t.name }}">{{ t.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select id="filterBlock" class="form-select form-select-sm" onchange="applyPlotFilters()">
+                            <option value="">— All Blocks —</option>
+                            {% for b in all_blocks %}
+                            <option value="{{ b.name }}" data-town="{{ b.town.name }}">{{ b.town.name }} — {{ b.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select id="filterStatus" class="form-select form-select-sm" onchange="applyPlotFilters()">
+                            <option value="">— All Status —</option>
+                            <option value="AVAILABLE">Available</option>
+                            <option value="BOOKED">Booked</option>
+                            <option value="SOLD">Sold</option>
+                            <option value="HOLD">Hold</option>
+                            <option value="CANCELLED">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-flex gap-1">
+                            <input type="text" id="filterSearch" class="form-control form-control-sm"
+                                   placeholder="Search plot / customer…" oninput="applyPlotFilters()">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="clearPlotFilters()" title="Clear filters">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover table-sm align-middle mb-0" id="plotsDetailTable">
@@ -90,7 +119,7 @@
                         </thead>
                         <tbody>
                             {% for p in plots_detail %}
-                            <tr data-status="{{ p.status }}">
+                            <tr data-status="{{ p.status }}" data-town="{{ p.town|lower }}" data-block="{{ p.block|lower }}">
                                 <td class="text-muted plot-counter"></td>
                                 <td class="fw-semibold">{{ p.plot_no }}</td>
                                 <td>{{ p.block }}<small class="text-muted"> / {{ p.town }}</small></td>
@@ -461,52 +490,64 @@
 {% endif %}
 
 <script>
-(function () {
-    const filterBtns = document.querySelectorAll('.plot-filter');
-    const table      = document.getElementById('plotsDetailTable');
+function applyPlotFilters() {
+    const table    = document.getElementById('plotsDetailTable');
     if (!table) return;
+    const town     = (document.getElementById('filterTown').value   || '').toLowerCase();
+    const block    = (document.getElementById('filterBlock').value  || '').toLowerCase();
+    const status   = (document.getElementById('filterStatus').value || '').toUpperCase();
+    const search   = (document.getElementById('filterSearch').value || '').toLowerCase();
 
-    function recount() {
-        const rows    = table.querySelectorAll('tbody tr[data-status]');
-        const visible = [...rows].filter(r => r.style.display !== 'none');
-        visible.forEach((r, i) => { r.querySelector('.plot-counter').textContent = i + 1; });
+    // When town changes, restrict block dropdown options
+    const blockSel = document.getElementById('filterBlock');
+    [...blockSel.options].forEach(opt => {
+        if (!opt.value) return;
+        opt.hidden = town ? opt.dataset.town.toLowerCase() !== town : false;
+    });
+    if (town && blockSel.selectedOptions[0] && blockSel.selectedOptions[0].hidden) {
+        blockSel.value = '';
+    }
 
-        let net = 0, rec = 0, bal = 0;
-        visible.forEach(r => {
-            const cells = r.querySelectorAll('td');
+    let net = 0, rec = 0, bal = 0, idx = 0;
+    table.querySelectorAll('tbody tr[data-status]').forEach(r => {
+        const cells   = r.querySelectorAll('td');
+        const rTown   = (r.dataset.town   || '').toLowerCase();
+        const rBlock  = (r.dataset.block  || '').toLowerCase();
+        const rStatus = r.dataset.status  || '';
+        const rText   = r.textContent.toLowerCase();
+
+        const ok = (!town   || rTown   === town)
+                && (!block  || rBlock  === block)
+                && (!status || rStatus === status)
+                && (!search || rText.includes(search));
+
+        r.style.display = ok ? '' : 'none';
+        if (ok) {
+            r.querySelector('.plot-counter').textContent = ++idx;
             net += parseFloat(cells[5].textContent.replace(/[^0-9.-]/g, '')) || 0;
             rec += parseFloat(cells[6].textContent.replace(/[^0-9.-]/g, '')) || 0;
             bal += parseFloat(cells[7].textContent.replace(/[^0-9.-]/g, '')) || 0;
-        });
-        const fmt = n => Math.round(n).toLocaleString();
-        const tn = document.getElementById('totalsNet');
-        const tr = document.getElementById('totalsReceived');
-        const tb = document.getElementById('totalsBalance');
-        if (tn) tn.textContent = fmt(net);
-        if (tr) tr.textContent = fmt(rec);
-        if (tb) tb.textContent = fmt(bal);
-    }
-
-    filterBtns.forEach(btn => {
-        btn.dataset.origClass = [...btn.classList].find(c => c.startsWith('btn-outline-')) || 'btn-outline-secondary';
-        btn.addEventListener('click', function () {
-            filterBtns.forEach(b => {
-                b.classList.remove('active', 'btn-dark', 'btn-success', 'btn-warning', 'btn-danger', 'btn-secondary');
-                b.classList.add(b.dataset.origClass);
-            });
-            this.classList.remove(this.dataset.origClass);
-            this.classList.add('active', 'btn-dark');
-
-            const f = this.dataset.filter;
-            table.querySelectorAll('tbody tr[data-status]').forEach(r => {
-                r.style.display = (f === 'ALL' || r.dataset.status === f) ? '' : 'none';
-            });
-            recount();
-        });
+        }
     });
 
-    recount();
-})();
+    const fmt = n => Math.round(n).toLocaleString();
+    const tn  = document.getElementById('totalsNet');
+    const tr  = document.getElementById('totalsReceived');
+    const tb  = document.getElementById('totalsBalance');
+    if (tn) tn.textContent = fmt(net);
+    if (tr) tr.textContent = fmt(rec);
+    if (tb) tb.textContent = fmt(bal);
+}
+
+function clearPlotFilters() {
+    document.getElementById('filterTown').value   = '';
+    document.getElementById('filterBlock').value  = '';
+    document.getElementById('filterStatus').value = '';
+    document.getElementById('filterSearch').value = '';
+    applyPlotFilters();
+}
+
+document.addEventListener('DOMContentLoaded', applyPlotFilters);
 
 function plotsPrint() {
     const table = document.getElementById('plotsDetailTable');
