@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.db import transaction
 from django.db.models import Sum
 from requests import request
-from .models import Booking, PaymentPlan, Receipt, Cancellation, AgentCommission
+from .models import Booking, PaymentPlan, Receipt, Cancellation, AgentCommission, RefundReceipt
 from apps.development.models import Plot
 from apps.customers.models import Customer
 from apps.agents.models import Agent
@@ -27,6 +27,18 @@ def generate_receipt_no():
     else:
         num = 1
     return f"RCP-{num:05d}"
+
+
+def generate_refund_receipt_no():
+    last = RefundReceipt.objects.order_by('-id').first()
+    if last:
+        try:
+            num = int(last.receipt_no.split('-')[-1]) + 1
+        except Exception:
+            num = 1
+    else:
+        num = 1
+    return f"RFD-{num:05d}"
 
 
 # ======================================================
@@ -62,8 +74,9 @@ def booking_add(request):
                     status='AVAILABLE',
                     is_deleted=False
                 ).select_related('block__town').order_by('block__town__name', 'plot_no')
-    customers = Customer.objects.filter(is_deleted=False).order_by('name')
-    agents    = Agent.objects.filter(is_deleted=False).order_by('name')
+    customers         = Customer.objects.filter(is_deleted=False).order_by('name')
+    agents            = Agent.objects.filter(is_deleted=False).order_by('name')
+    selected_customer = request.GET.get('customer', '')
 
     if request.method == 'POST':
         plot     = get_object_or_404(Plot, pk=request.POST.get('plot'))
@@ -152,10 +165,11 @@ def booking_add(request):
         return redirect('sales:booking_detail', pk=booking.pk)
 
     return render(request, 'sales/booking_form.html', {
-        'plots':     plots,
-        'customers': customers,
-        'agents':    agents,
-        'title':     'New Booking',
+        'plots':             plots,
+        'customers':         customers,
+        'agents':            agents,
+        'title':             'New Booking',
+        'selected_customer': selected_customer,
     })
 
 
@@ -471,4 +485,95 @@ def transfer_create(request, booking_id):
     return render(request, 'sales/transfer_form.html', {
         'booking':           booking,
         'remaining_balance': remaining_balance,
+    })
+
+@login_required
+def refund_pay(request, pk):
+    cancellation = get_object_or_404(Cancellation, pk=pk)
+
+    if request.method == 'POST':
+        try:
+            amount = Decimal(request.POST.get('refund_paid', '0'))
+        except Exception:
+            amount = Decimal('0')
+
+        paid_date    = request.POST.get('refund_paid_date')
+        payment_mode = request.POST.get('refund_payment_mode', 'CASH')
+        notes        = request.POST.get('refund_notes', '')
+        bank_account = request.POST.get('bank_account', '')
+        cheque_no    = request.POST.get('cheque_no', '')
+        cheque_bank  = request.POST.get('cheque_bank', '')
+        cheque_date  = request.POST.get('cheque_date') or None
+
+        if payment_mode not in {'CASH', 'BANK_TRANSFER', 'CHEQUE'}:
+            payment_mode = 'CASH'
+
+        if amount <= 0:
+            messages.error(request, 'Refund amount must be greater than zero.')
+            return redirect('sales:booking_detail', pk=cancellation.booking.pk)
+
+        if amount > cancellation.refund_amount:
+            messages.error(request, f'Refund amount cannot exceed Rs. {cancellation.refund_amount}.')
+            return redirect('sales:booking_detail', pk=cancellation.booking.pk)
+
+        if not paid_date:
+            messages.error(request, 'Payment date is required.')
+            return redirect('sales:booking_detail', pk=cancellation.booking.pk)
+
+        with transaction.atomic():
+            cancellation.refund_paid         = amount
+            cancellation.refund_paid_date    = paid_date
+            cancellation.refund_payment_mode = payment_mode
+            cancellation.refund_notes        = notes
+            cancellation.save()
+
+            refund_receipt = RefundReceipt.objects.create(
+                cancellation = cancellation,
+                receipt_no   = generate_refund_receipt_no(),
+                receipt_date = paid_date,
+                amount       = amount,
+                payment_mode = payment_mode,
+                cheque_no    = cheque_no,
+                cheque_bank  = cheque_bank,
+                cheque_date  = cheque_date,
+                bank_account = bank_account,
+                narration    = notes,
+                created_by   = request.user,
+            )
+
+            from apps.accounting.journal_auto import journal_on_refund_payment
+            journal_on_refund_payment(cancellation, bank_account=bank_account, user=request.user)
+
+        messages.success(request, f'Refund of Rs. {amount} marked as paid. Receipt {refund_receipt.receipt_no} created.')
+        return redirect('sales:booking_detail', pk=cancellation.booking.pk)
+
+    return redirect('sales:booking_detail', pk=cancellation.booking.pk)
+
+
+@login_required
+def refund_receipt_print(request, pk):
+    from apps.core.models import BusinessProfile
+    refund_receipt = get_object_or_404(RefundReceipt, pk=pk)
+    business = BusinessProfile.objects.first()
+    return render(request, 'sales/refund_receipt_print.html', {
+        'refund_receipt': refund_receipt,
+        'business':       business,
+    })
+
+
+@login_required
+def refund_list(request):
+    status_filter = request.GET.get('status', 'all')
+    cancellations = Cancellation.objects.select_related(
+        'booking__customer', 'booking__plot__block__town'
+    ).order_by('-cancellation_date')
+
+    if status_filter == 'pending':
+        cancellations = cancellations.filter(refund_amount__gt=0, refund_paid=0)
+    elif status_filter == 'paid':
+        cancellations = cancellations.filter(refund_paid__gt=0)
+
+    return render(request, 'sales/refund_list.html', {
+        'cancellations': cancellations,
+        'status_filter':  status_filter,
     })

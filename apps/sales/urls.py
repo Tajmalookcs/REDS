@@ -21,6 +21,8 @@ urlpatterns = [
     path('receipts/', views.receipt_list,   name='receipt_list'),
     path('receipts/<int:pk>/print/', views.receipt_print, name='receipt_print'),
     path('bookings/<int:pk>/print/', views.booking_print, name='booking_print'),
-
+    path('cancellations/<int:pk>/refund/', views.refund_pay, name='refund_pay'),
+    path('refund-receipts/<int:pk>/print/', views.refund_receipt_print, name='refund_receipt_print'),
+    path('refunds/', views.refund_list, name='refund_list'),
 
 ]

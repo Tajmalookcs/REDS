@@ -79,9 +79,8 @@ def dashboard(request):
         due_date__gt=today,
         due_date__lte=today + timedelta(days=7),
     )
-    pending_refunds = Cancellation.objects.filter(refund_amount__gt=0)
-    red_count       = overdue_installments.count() + pending_refunds.count()
-    yellow_count    = due_soon_installments.count()
+    red_count    = overdue_installments.count()
+    yellow_count = due_soon_installments.count()
 
     # ── Towns with stats ───────────────────────────────
     from apps.development.models import Town, Block, TownMap
@@ -118,6 +117,43 @@ def dashboard(request):
             'image':      town_image,
         })
 
+    # ── Plots detail — all plots with booking financials ──
+    from apps.sales.models import Booking as _Booking
+    from django.db.models import Sum as _Sum
+    _booking_map = {
+        b.plot_id: b
+        for b in _Booking.objects
+            .filter(is_deleted=False, status__in=['ACTIVE', 'COMPLETED'])
+            .annotate(amount_received=_Sum('receipts__amount'))
+    }
+    _all_plots = (
+        Plot.objects
+        .filter(is_deleted=False)
+        .select_related('block__town')
+        .order_by('block__town__name', 'block__name', 'plot_no')
+    )
+    plots_detail         = []
+    plots_total_net      = 0
+    plots_total_received = 0
+    for p in _all_plots:
+        bk       = _booking_map.get(p.pk)
+        net      = (bk.net_price or 0) if bk else (p.price or 0)
+        received = (bk.amount_received or 0) if bk else 0
+        balance  = net - received
+        plots_total_net      += net
+        plots_total_received += received
+        plots_detail.append({
+            'plot_no':   p.plot_no,
+            'block':     p.block.name,
+            'town':      p.block.town.name,
+            'status':    p.status,
+            'customer':  bk.customer.name if bk else '—',
+            'net_price': net,
+            'received':  received,
+            'balance':   balance,
+        })
+    plots_total_balance = plots_total_net - plots_total_received
+
     context = {
         'total_plots':            total_plots,
         'available_plots':        available_plots,
@@ -127,43 +163,12 @@ def dashboard(request):
         'red_count':              red_count,
         'yellow_count':           yellow_count,
         'overdue_installments':   overdue_installments,
-        'pending_refunds':        pending_refunds,
         'due_soon_installments':  due_soon_installments,
         'towns_data':             towns_data,
-    }
-    return render(request, 'core/dashboard.html', context)
-    today = date.today()
-    total_plots = Plot.objects.filter(is_deleted=False).count()
-    available_plots = Plot.objects.filter(is_deleted=False, status='AVAILABLE').count()
-
-    bookings = Booking.objects.filter(is_deleted=False)
-    active_bookings = bookings.filter(status='ACTIVE').count()
-
-    total_received = Receipt.objects.filter(is_deleted=False).aggregate(total=Sum('amount'))['total'] or 0
-    receipts_today = Receipt.objects.filter(is_deleted=False, receipt_date=today).count()
-
-    overdue_installments = PaymentPlan.objects.filter(status='OVERDUE')
-    due_soon_installments = PaymentPlan.objects.filter(
-        status='PENDING',
-        due_date__gt=today,
-        due_date__lte=today + timedelta(days=7),
-    )
-    pending_refunds = Cancellation.objects.filter(refund_amount__gt=0)
-
-    red_count = overdue_installments.count() + pending_refunds.count()
-    yellow_count = due_soon_installments.count()
-
-    context = {
-        'total_plots': total_plots,
-        'available_plots': available_plots,
-        'active_bookings': active_bookings,
-        'total_received': total_received,
-        'receipts_today': receipts_today,
-        'red_count': red_count,
-        'yellow_count': yellow_count,
-        'overdue_installments': overdue_installments,
-        'pending_refunds': pending_refunds,
-        'due_soon_installments': due_soon_installments,
+        'plots_detail':           plots_detail,
+        'plots_total_net':        plots_total_net,
+        'plots_total_received':   plots_total_received,
+        'plots_total_balance':    plots_total_balance,
     }
     return render(request, 'core/dashboard.html', context)
 

@@ -22,6 +22,8 @@ def customer_list(request):
 
 @login_required
 def customer_add(request):
+    next_page = request.GET.get('next', '') or request.POST.get('next', '')
+
     if request.method == 'POST':
         customer = Customer.objects.create(
             name       = request.POST.get('name'),
@@ -36,11 +38,17 @@ def customer_add(request):
         if request.FILES.get('photo'):
             customer.photo = request.FILES['photo']
             customer.save()
-        messages.success(request, 'Customer added successfully.')
+        messages.success(request, f'Customer "{customer.name}" added successfully.')
+
+        if next_page == 'booking':
+            from django.urls import reverse
+            return redirect(reverse('sales:booking_add') + f'?customer={customer.pk}')
+
         return redirect('customers:customer_list')
 
     return render(request, 'customers/customer_form.html', {
-        'title': 'Add Customer'
+        'title': 'Add Customer',
+        'next':  next_page,
     })
 
 

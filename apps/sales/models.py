@@ -205,9 +205,60 @@ class Cancellation(models.Model):
                             on_delete=models.SET_NULL,
                             null=True, blank=True
                           )
+    refund_paid         = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    refund_paid_date    = models.DateField(null=True, blank=True)
+    refund_payment_mode = models.CharField(max_length=15, blank=True)
+    refund_notes        = models.TextField(blank=True)
+
+    @property
+    def refund_status(self):
+        if self.refund_amount <= 0:
+            return 'NO_REFUND'
+        if self.refund_paid >= self.refund_amount:
+            return 'PAID'
+        if self.refund_paid > 0:
+            return 'PARTIAL'
+        return 'PENDING'
 
     def __str__(self):
         return f"Cancellation — Booking #{self.booking.pk}"
+
+
+# ======================================================
+# REFUND RECEIPT
+# ======================================================
+
+class RefundReceipt(models.Model):
+
+    PAYMENT_MODE_CHOICES = [
+        ('CASH',          'Cash'),
+        ('BANK_TRANSFER', 'Bank Transfer'),
+        ('CHEQUE',        'Cheque'),
+    ]
+
+    cancellation    = models.OneToOneField(
+                        Cancellation,
+                        on_delete=models.PROTECT,
+                        related_name='refund_receipt'
+                      )
+    receipt_no      = models.CharField(max_length=50, unique=True)
+    receipt_date    = models.DateField()
+    amount          = models.DecimalField(max_digits=15, decimal_places=2)
+    payment_mode    = models.CharField(max_length=15, choices=PAYMENT_MODE_CHOICES, default='CASH')
+    cheque_no       = models.CharField(max_length=100, blank=True)
+    cheque_bank     = models.CharField(max_length=200, blank=True)
+    cheque_date     = models.DateField(null=True, blank=True)
+    bank_account    = models.CharField(max_length=100, blank=True)
+    narration       = models.TextField(blank=True)
+    created_at      = models.DateTimeField(auto_now_add=True)
+    created_by      = models.ForeignKey(
+                        CustomUser,
+                        on_delete=models.SET_NULL,
+                        null=True, blank=True
+                      )
+
+    def __str__(self):
+        return f"Refund Receipt {self.receipt_no} — Rs. {self.amount}"
 
 
 # ======================================================

@@ -263,8 +263,38 @@ def plot_list(request):
     for val, label in Plot.STATUS_CHOICES:
         status_counts[val] = base_plots.filter(status=val).count()
 
+    # Attach booking financials to each plot
+    from apps.sales.models import Booking
+    from django.db.models import Sum as _Sum
+    booking_map = {
+        b.plot_id: b
+        for b in Booking.objects
+            .filter(is_deleted=False, status__in=['ACTIVE', 'COMPLETED'])
+            .annotate(amount_received=_Sum('receipts__amount'))
+    }
+
+    plots_data     = []
+    total_price    = 0
+    total_received = 0
+    total_balance  = 0
+
+    for p in plots:
+        bk            = booking_map.get(p.pk)
+        display_price = (bk.net_price or p.price or 0) if bk else (p.price or 0)
+        received      = (bk.amount_received or 0) if bk else 0
+        balance       = display_price - received
+        total_price    += display_price
+        total_received += received
+        total_balance  += balance
+        plots_data.append({
+            'obj':           p,
+            'display_price': display_price,
+            'received':      received,
+            'balance':       balance,
+        })
+
     return render(request, 'development/plot_list.html', {
-        'plots':           plots,
+        'plots':           plots_data,
         'towns':           towns,
         'blocks':          blocks,
         'selected_town':   town_id,
@@ -272,6 +302,9 @@ def plot_list(request):
         'selected_status': status,
         'status_choices':  Plot.STATUS_CHOICES,
         'status_counts':   status_counts,
+        'total_price':     total_price,
+        'total_received':  total_received,
+        'total_balance':   total_balance,
     })
 
 

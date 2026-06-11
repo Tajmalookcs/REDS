@@ -11,77 +11,23 @@
 
                 <!-- ── CUSTOMER ─────────────────────── -->
                 <div class="col-12">
-                    <label class="form-label fw-semibold">Customer</label>
-                    <div class="d-flex gap-3 mb-2">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="customer_mode"
-                                   id="modeExisting" value="existing" checked
-                                   onchange="toggleCustomerMode('existing')">
-                            <label class="form-check-label" for="modeExisting">
-                                Existing Customer
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="customer_mode"
-                                   id="modeNew" value="new"
-                                   onchange="toggleCustomerMode('new')">
-                            <label class="form-check-label" for="modeNew">
-                                New Customer
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Existing dropdown -->
-                    <div id="existingCustomer">
-                        <select name="customer" class="form-select">
+                    <label class="form-label fw-semibold">
+                        Customer <span class="text-danger">*</span>
+                    </label>
+                    <div class="d-flex gap-2 align-items-center">
+                        <select name="customer" class="form-select" id="customerSelect" required>
                             <option value="">— Select Customer —</option>
                             {% for c in customers %}
-                            <option value="{{ c.pk }}">{{ c.name }} ({{ c.phone }})</option>
+                            <option value="{{ c.pk }}"
+                                {% if selected_customer == c.pk|stringformat:"s" %}selected{% endif %}>
+                                {{ c.name }}{% if c.contact %} ({{ c.contact }}){% endif %}
+                            </option>
                             {% endfor %}
                         </select>
-                    </div>
-
-                    <!-- New customer inline fields -->
-                    <div id="newCustomer" class="d-none">
-                        <div class="card bg-light border-0 p-3">
-                            <div class="row g-2">
-                                <div class="col-md-6">
-                                    <label class="form-label">
-                                        Full Name <span class="text-danger">*</span>
-                                    </label>
-                                    <input type="text" name="new_name" class="form-control"
-                                           placeholder="Full name">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">
-                                        Contact <span class="text-danger">*</span>
-                                    </label>
-                                    <input type="text" name="new_contact" class="form-control"
-                                           placeholder="Phone number">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">
-                                        CNIC <span class="text-muted small">(optional)</span>
-                                    </label>
-                                    <input type="text" name="new_cnic" class="form-control"
-                                           placeholder="00000-0000000-0">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">
-                                        City <span class="text-muted small">(optional)</span>
-                                    </label>
-                                    <input type="text" name="new_city" class="form-control"
-                                           placeholder="City">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">
-                                        Address <span class="text-muted small">(optional)</span>
-                                    </label>
-                                    <input type="text" name="new_address" class="form-control"
-                                           placeholder="Address">
-                                </div>
-                            </div>
-                        </div>
+                        <a href="{% url 'customers:customer_add' %}?next=booking"
+                           class="btn btn-outline-primary btn-sm text-nowrap">
+                            <i class="bi bi-person-plus"></i> New Customer
+                        </a>
                     </div>
                 </div>
 

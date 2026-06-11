@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load development_filters %}
+{% load humanize %}
 {% block title %}Plots — REDS{% endblock %}
 {% block page_title %}Plots{% endblock %}
 
@@ -82,13 +83,16 @@
                     <th>Block</th>
                     <th>Size</th>
                     <th>Type</th>
-                    <th>Price (Rs.)</th>
+                    <th class="text-end">Price (Rs.)</th>
+                    <th class="text-end">Received (Rs.)</th>
+                    <th class="text-end">Balance (Rs.)</th>
                     <th>Status</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                {% for plot in plots %}
+                {% for item in plots %}
+                {% with plot=item.obj %}
                 <tr>
                     <td>{{ forloop.counter }}</td>
                     <td class="fw-semibold">{{ plot.plot_no }}</td>
@@ -103,7 +107,11 @@
                             {{ plot.plot_type }}
                         </span>
                     </td>
-                    <td>{{ plot.price|floatformat:0 }}</td>
+                    <td class="text-end">{{ item.display_price|floatformat:0|intcomma }}</td>
+                    <td class="text-end text-success fw-semibold">{{ item.received|floatformat:0|intcomma }}</td>
+                    <td class="text-end {% if item.balance > 0 %}text-danger fw-semibold{% else %}text-success{% endif %}">
+                        {{ item.balance|floatformat:0|intcomma }}
+                    </td>
                     <td>
                         <span class="badge
                             {% if plot.status == 'AVAILABLE' %}bg-success
@@ -128,14 +136,26 @@
                         {% endif %}
                     </td>
                 </tr>
+                {% endwith %}
                 {% empty %}
                 <tr>
-                    <td colspan="9" class="text-center text-muted py-4">
+                    <td colspan="11" class="text-center text-muted py-4">
                         No plots found. Use filters above or add a new plot.
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
+            {% if plots %}
+            <tfoot class="table-secondary fw-bold">
+                <tr>
+                    <td colspan="6" class="text-end">Totals</td>
+                    <td class="text-end">{{ total_price|floatformat:0|intcomma }}</td>
+                    <td class="text-end text-success">{{ total_received|floatformat:0|intcomma }}</td>
+                    <td class="text-end text-danger">{{ total_balance|floatformat:0|intcomma }}</td>
+                    <td colspan="2"></td>
+                </tr>
+            </tfoot>
+            {% endif %}
         </table>
 
     </div>

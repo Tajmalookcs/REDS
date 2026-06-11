@@ -148,6 +148,30 @@ def journal_on_expense(expense, user=None):
 
 
 # ─────────────────────────────────────────
+# ON REFUND PAYMENT MADE
+# ─────────────────────────────────────────
+def journal_on_refund_payment(cancellation, bank_account=None, user=None):
+    amount    = cancellation.refund_paid
+    ref       = f"REFUND-{cancellation.booking.booking_no}"
+    narration = f"Refund paid — {cancellation.booking.customer.name} — {ref}"
+
+    if cancellation.refund_payment_mode == 'CASH':
+        credit_code = '1001'
+    elif cancellation.refund_payment_mode == 'BANK_TRANSFER':
+        credit_code = bank_account if bank_account else '1010'
+    elif cancellation.refund_payment_mode == 'CHEQUE':
+        credit_code = '1003'
+    else:
+        credit_code = '1001'
+
+    lines = [
+        {'account_code': '2002',      'debit': amount, 'credit': 0,      'narration': narration},
+        {'account_code': credit_code, 'debit': 0,      'credit': amount,  'narration': narration},
+    ]
+    return create_journal(narration, ref, lines, user)
+
+
+# ─────────────────────────────────────────
 # ON AGENT COMMISSION PAID
 # ─────────────────────────────────────────
 def journal_on_commission_paid(commission, user=None):

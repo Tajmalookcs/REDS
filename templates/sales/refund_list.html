@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block title %}Refunds — REDS{% endblock %}
+{% block page_title %}Refunds{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+
+        <!-- Filter Tabs -->
+        <div class="d-flex gap-2 mb-3">
+            <a href="?status=all"
+               class="btn btn-sm {% if status_filter == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                All
+            </a>
+            <a href="?status=pending"
+               class="btn btn-sm {% if status_filter == 'pending' %}btn-danger{% else %}btn-outline-danger{% endif %}">
+                <i class="bi bi-hourglass-split"></i> Pending
+            </a>
+            <a href="?status=paid"
+               class="btn btn-sm {% if status_filter == 'paid' %}btn-success{% else %}btn-outline-success{% endif %}">
+                <i class="bi bi-check-circle"></i> Paid
+            </a>
+        </div>
+
+        <table class="table table-hover table-sm align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Booking</th>
+                    <th>Customer</th>
+                    <th>Plot</th>
+                    <th>Cancel Date</th>
+                    <th class="text-end">Refund Due (Rs.)</th>
+                    <th class="text-end">Refund Paid (Rs.)</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in cancellations %}
+                <tr>
+                    <td class="fw-semibold">
+                        <a href="{% url 'sales:booking_detail' c.booking.pk %}" class="text-decoration-none">
+                            #{{ c.booking.booking_no }}
+                        </a>
+                    </td>
+                    <td>{{ c.booking.customer.name }}</td>
+                    <td>
+                        {{ c.booking.plot.plot_no }}
+                        <small class="text-muted">— {{ c.booking.plot.block.name }}</small>
+                    </td>
+                    <td>{{ c.cancellation_date }}</td>
+                    <td class="text-end text-danger fw-semibold">{{ c.refund_amount|floatformat:0|intcomma }}</td>
+                    <td class="text-end text-success fw-semibold">
+                        {% if c.refund_paid %}{{ c.refund_paid|floatformat:0|intcomma }}{% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if c.refund_status == 'PAID' %}
+                            <span class="badge bg-success">Paid</span>
+                        {% elif c.refund_status == 'PARTIAL' %}
+                            <span class="badge bg-warning text-dark">Partial</span>
+                        {% elif c.refund_status == 'PENDING' %}
+                            <span class="badge bg-danger">Pending</span>
+                        {% else %}
+                            <span class="badge bg-secondary">No Refund</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'sales:booking_detail' c.booking.pk %}"
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye"></i> View
+                        </a>
+                        {% if c.refund_status == 'PAID' %}
+                            {% with rr=c.refund_receipt %}
+                            {% if rr %}
+                            <a href="{% url 'sales:refund_receipt_print' rr.pk %}"
+                               target="_blank" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-printer"></i>
+                            </a>
+                            {% endif %}
+                            {% endwith %}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">No refunds found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+    </div>
+</div>
+{% endblock %}

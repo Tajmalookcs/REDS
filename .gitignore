@@ -5,6 +5,9 @@ env/
 # VS Code
 .vscode/
 
+# Claude
+.claude/
+
 # Django / Flask
 db.sqlite3
 *.log
@@ -14,7 +17,7 @@ __pycache__/
 *.pyc
 
 # Static build files
-staticfiles/
+media/
 
 # OS files
 .DS_Store
