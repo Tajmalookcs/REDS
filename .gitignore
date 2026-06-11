@@ -25,3 +25,6 @@ Thumbs.db
 
 # Zip files
 *.zip
+
+# Installer (contains GitHub token — never commit)
+Install REDS.bat
