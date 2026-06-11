@@ -193,10 +193,6 @@ def logout_view(request):
     return redirect('login')
 
 
-# ======================================================
-# STOP SERVER
-# ======================================================
-
 @login_required
 def stop_server(request):
     import threading, os, signal
