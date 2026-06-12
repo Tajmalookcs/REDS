@@ -59,6 +59,14 @@
                             {% endwith %}
                         </a>
 
+                        <!-- Partners Button -->
+                        <a href="{% url 'development:town_detail' town.pk %}"
+                           class="btn btn-sm btn-outline-warning"
+                           title="Partners / Investors">
+                            <i class="bi bi-people"></i> Partners
+                            {% with count=town.partners.filter.count %}{% endwith %}
+                        </a>
+
                         <!-- Edit Button -->
                         <a href="{% url 'development:town_edit' town.pk %}"
                            class="btn btn-sm btn-outline-primary">

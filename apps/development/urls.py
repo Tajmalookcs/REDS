@@ -18,6 +18,28 @@ urlpatterns = [
     path('towns/<int:pk>/delete/',
          views.town_delete,
          name='town_delete'),
+    path('towns/<int:pk>/detail/',
+         views.town_detail,
+         name='town_detail'),
+
+    # ── Partners ───────────────────────────────────────
+    path('towns/<int:town_pk>/partners/add/',
+         views.partner_add,
+         name='partner_add'),
+    path('partners/<int:pk>/edit/',
+         views.partner_edit,
+         name='partner_edit'),
+    path('partners/<int:pk>/delete/',
+         views.partner_delete,
+         name='partner_delete'),
+
+    # ── Partner Transactions ───────────────────────────
+    path('partners/<int:partner_pk>/transactions/add/',
+         views.transaction_add,
+         name='transaction_add'),
+    path('transactions/<int:pk>/delete/',
+         views.transaction_delete,
+         name='transaction_delete'),
 
     # ── Blocks ─────────────────────────────────────────
     path('blocks/',

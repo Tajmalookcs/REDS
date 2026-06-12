@@ -44,6 +44,77 @@ class Town(models.Model):
 
 
 # ======================================================
+# TOWN PARTNER
+# ======================================================
+
+class TownPartner(models.Model):
+    town            = models.ForeignKey(
+                        Town,
+                        on_delete=models.CASCADE,
+                        related_name='partners'
+                      )
+    name            = models.CharField(max_length=200)
+    share_percent   = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    notes           = models.TextField(blank=True)
+    is_deleted      = models.BooleanField(default=False)
+    created_at      = models.DateTimeField(auto_now_add=True)
+    created_by      = models.ForeignKey(
+                        CustomUser,
+                        on_delete=models.SET_NULL,
+                        null=True, blank=True
+                      )
+
+    def __str__(self):
+        return f"{self.name} ({self.share_percent}%) — {self.town.name}"
+
+    @property
+    def total_invested(self):
+        return self.transactions.filter(
+            transaction_type='INVESTMENT'
+        ).aggregate(t=models.Sum('amount'))['t'] or 0
+
+    @property
+    def total_withdrawn(self):
+        return self.transactions.filter(
+            transaction_type='WITHDRAWAL'
+        ).aggregate(t=models.Sum('amount'))['t'] or 0
+
+    @property
+    def balance(self):
+        return self.total_invested - self.total_withdrawn
+
+
+class PartnerTransaction(models.Model):
+
+    TYPE_CHOICES = [
+        ('INVESTMENT', 'Investment'),
+        ('WITHDRAWAL', 'Withdrawal / Payback'),
+    ]
+
+    partner             = models.ForeignKey(
+                            TownPartner,
+                            on_delete=models.CASCADE,
+                            related_name='transactions'
+                          )
+    transaction_type    = models.CharField(max_length=15, choices=TYPE_CHOICES)
+    amount              = models.DecimalField(max_digits=15, decimal_places=2)
+    transaction_date    = models.DateField()
+    narration           = models.TextField(blank=True)
+    created_at          = models.DateTimeField(auto_now_add=True)
+    created_by          = models.ForeignKey(
+                            CustomUser,
+                            on_delete=models.SET_NULL,
+                            null=True, blank=True
+                          )
+
+    class Meta:
+        ordering = ['-transaction_date', '-created_at']
+
+    def __str__(self):
+        return f"{self.transaction_type} — Rs. {self.amount} — {self.partner.name}"
+
+
+# ======================================================
 # BLOCK
 # ======================================================
 

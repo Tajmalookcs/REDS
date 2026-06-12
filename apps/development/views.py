@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from .models import Town, Block, Plot, TownMap, PlotCoordinate
+from .models import Town, Block, Plot, TownMap, PlotCoordinate, TownPartner, PartnerTransaction
 import json
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
@@ -150,6 +150,81 @@ def town_delete(request, pk):
     town.save()
     messages.success(request, 'Town deleted.')
     return redirect('development:town_list')
+
+
+# ======================================================
+# TOWN DETAIL / PARTNERS
+# ======================================================
+
+@login_required
+def town_detail(request, pk):
+    town     = get_object_or_404(Town, pk=pk, is_deleted=False)
+    partners = TownPartner.objects.filter(town=town, is_deleted=False).prefetch_related('transactions')
+    return render(request, 'development/town_detail.html', {
+        'town':     town,
+        'partners': partners,
+    })
+
+
+@login_required
+def partner_add(request, town_pk):
+    town = get_object_or_404(Town, pk=town_pk, is_deleted=False)
+    if request.method == 'POST':
+        TownPartner.objects.create(
+            town          = town,
+            name          = request.POST.get('name', '').strip(),
+            share_percent = request.POST.get('share_percent', 0),
+            notes         = request.POST.get('notes', ''),
+            created_by    = request.user,
+        )
+        messages.success(request, 'Partner added.')
+    return redirect('development:town_detail', pk=town_pk)
+
+
+@login_required
+def partner_edit(request, pk):
+    partner = get_object_or_404(TownPartner, pk=pk, is_deleted=False)
+    if request.method == 'POST':
+        partner.name          = request.POST.get('name', '').strip()
+        partner.share_percent = request.POST.get('share_percent', 0)
+        partner.notes         = request.POST.get('notes', '')
+        partner.save()
+        messages.success(request, 'Partner updated.')
+    return redirect('development:town_detail', pk=partner.town_id)
+
+
+@login_required
+def partner_delete(request, pk):
+    partner            = get_object_or_404(TownPartner, pk=pk)
+    partner.is_deleted = True
+    partner.save()
+    messages.success(request, 'Partner removed.')
+    return redirect('development:town_detail', pk=partner.town_id)
+
+
+@login_required
+def transaction_add(request, partner_pk):
+    partner = get_object_or_404(TownPartner, pk=partner_pk, is_deleted=False)
+    if request.method == 'POST':
+        PartnerTransaction.objects.create(
+            partner          = partner,
+            transaction_type = request.POST.get('transaction_type'),
+            amount           = request.POST.get('amount'),
+            transaction_date = request.POST.get('transaction_date'),
+            narration        = request.POST.get('narration', ''),
+            created_by       = request.user,
+        )
+        messages.success(request, 'Transaction recorded.')
+    return redirect('development:town_detail', pk=partner.town_id)
+
+
+@login_required
+def transaction_delete(request, pk):
+    txn = get_object_or_404(PartnerTransaction, pk=pk)
+    town_pk = txn.partner.town_id
+    txn.delete()
+    messages.success(request, 'Transaction deleted.')
+    return redirect('development:town_detail', pk=town_pk)
 
 
 # ======================================================
