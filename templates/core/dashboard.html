@@ -110,6 +110,7 @@
                                 <th style="color:#000;">#</th>
                                 <th style="color:#000;">Plot No.</th>
                                 <th style="color:#000;">Block / Town</th>
+                                <th style="color:#000;">Size</th>
                                 <th style="color:#000;">Status</th>
                                 <th style="color:#000;">Customer Name</th>
                                 <th class="text-end" style="color:#000;">Net Amount (Rs.)</th>
@@ -123,6 +124,7 @@
                                 <td class="text-muted plot-counter"></td>
                                 <td class="fw-semibold">{{ p.plot_no }}</td>
                                 <td>{{ p.block }}<small class="text-muted"> / {{ p.town }}</small></td>
+                                <td>{{ p.size|floatformat:2 }} {{ p.size_unit }}</td>
                                 <td>
                                     {% if p.status == 'AVAILABLE' %}<span class="badge bg-success">Available</span>
                                     {% elif p.status == 'BOOKED' %}<span class="badge bg-warning text-dark">Booked</span>
@@ -137,13 +139,15 @@
                                 <td class="text-end {% if p.balance > 0 %}text-danger fw-semibold{% endif %}">{{ p.balance|floatformat:0|intcomma }}</td>
                             </tr>
                             {% empty %}
-                            <tr><td colspan="8" class="text-center text-muted py-4">No plots found.</td></tr>
+                            <tr><td colspan="9" class="text-center text-muted py-4">No plots found.</td></tr>
                             {% endfor %}
                         </tbody>
                         {% if plots_detail %}
                         <tfoot class="table-secondary fw-bold" id="plotsDetailTotals">
                             <tr>
-                                <td colspan="5" class="text-end">Totals</td>
+                                <td colspan="3" class="text-end">Totals</td>
+                                <td class="text-end" id="totalsMarla">{{ plots_total_marla|floatformat:2 }} Marla</td>
+                                <td colspan="2"></td>
                                 <td class="text-end" id="totalsNet">{{ plots_total_net|floatformat:0|intcomma }}</td>
                                 <td class="text-end text-success" id="totalsReceived">{{ plots_total_received|floatformat:0|intcomma }}</td>
                                 <td class="text-end text-danger" id="totalsBalance">{{ plots_total_balance|floatformat:0|intcomma }}</td>
@@ -508,7 +512,7 @@ function applyPlotFilters() {
         blockSel.value = '';
     }
 
-    let net = 0, rec = 0, bal = 0, idx = 0;
+    let net = 0, rec = 0, bal = 0, marla = 0, idx = 0;
     table.querySelectorAll('tbody tr[data-status]').forEach(r => {
         const cells   = r.querySelectorAll('td');
         const rTown   = (r.dataset.town   || '').toLowerCase();
@@ -524,16 +528,19 @@ function applyPlotFilters() {
         r.style.display = ok ? '' : 'none';
         if (ok) {
             r.querySelector('.plot-counter').textContent = ++idx;
-            net += parseFloat(cells[5].textContent.replace(/[^0-9.-]/g, '')) || 0;
-            rec += parseFloat(cells[6].textContent.replace(/[^0-9.-]/g, '')) || 0;
-            bal += parseFloat(cells[7].textContent.replace(/[^0-9.-]/g, '')) || 0;
+            marla += parseFloat(cells[3].textContent.replace(/[^0-9.-]/g, '')) || 0;
+            net   += parseFloat(cells[6].textContent.replace(/[^0-9.-]/g, '')) || 0;
+            rec   += parseFloat(cells[7].textContent.replace(/[^0-9.-]/g, '')) || 0;
+            bal   += parseFloat(cells[8].textContent.replace(/[^0-9.-]/g, '')) || 0;
         }
     });
 
     const fmt = n => Math.round(n).toLocaleString();
+    const tm  = document.getElementById('totalsMarla');
     const tn  = document.getElementById('totalsNet');
     const tr  = document.getElementById('totalsReceived');
     const tb  = document.getElementById('totalsBalance');
+    if (tm) tm.textContent = marla.toFixed(2) + ' Marla';
     if (tn) tn.textContent = fmt(net);
     if (tr) tr.textContent = fmt(rec);
     if (tb) tb.textContent = fmt(bal);
@@ -566,7 +573,7 @@ function plotsPrint() {
     </style></head><body>
     <h3 style="margin-bottom:8px;">Plots Detail</h3>
     <table><thead><tr>
-        <th>#</th><th>Plot No.</th><th>Block / Town</th><th>Status</th><th>Customer</th>
+        <th>#</th><th>Plot No.</th><th>Block / Town</th><th>Size</th><th>Status</th><th>Customer</th>
         <th class="text-end">Net Amount (Rs.)</th><th class="text-end">Received (Rs.)</th><th class="text-end">Balance (Rs.)</th>
     </tr></thead><tbody>`;
 
@@ -574,18 +581,20 @@ function plotsPrint() {
         const c = r.querySelectorAll('td');
         html += `<tr><td>${i+1}</td><td>${c[1].textContent.trim()}</td>
             <td>${c[2].textContent.trim().replace(/\s+/g,' ')}</td>
-            <td>${c[3].textContent.trim()}</td><td>${c[4].textContent.trim()}</td>
-            <td class="text-end">${c[5].textContent.trim()}</td>
+            <td>${c[3].textContent.trim()}</td>
+            <td>${c[4].textContent.trim()}</td><td>${c[5].textContent.trim()}</td>
             <td class="text-end">${c[6].textContent.trim()}</td>
-            <td class="text-end">${c[7].textContent.trim()}</td></tr>`;
+            <td class="text-end">${c[7].textContent.trim()}</td>
+            <td class="text-end">${c[8].textContent.trim()}</td></tr>`;
     });
 
     if (tfoot) {
         const fc = tfoot.querySelectorAll('td');
-        html += `</tbody><tfoot><tr><td colspan="5" class="text-end">Totals</td>
-            <td class="text-end">${fc[1].textContent.trim()}</td>
-            <td class="text-end">${fc[2].textContent.trim()}</td>
-            <td class="text-end">${fc[3].textContent.trim()}</td></tr></tfoot>`;
+        html += `</tbody><tfoot><tr><td colspan="3" class="text-end">Totals</td>
+            <td>${fc[1].textContent.trim()}</td><td colspan="2"></td>
+            <td class="text-end">${fc[3].textContent.trim()}</td>
+            <td class="text-end">${fc[4].textContent.trim()}</td>
+            <td class="text-end">${fc[5].textContent.trim()}</td></tr></tfoot>`;
     }
 
     html += `</table></body></html>`;
@@ -606,7 +615,7 @@ function plotsExcel() {
         xmlns="http://www.w3.org/TR/REC-html40">
     <head><meta charset="UTF-8"></head><body>
     <table border="1"><thead><tr>
-        <th>#</th><th>Plot No.</th><th>Block / Town</th><th>Status</th><th>Customer Name</th>
+        <th>#</th><th>Plot No.</th><th>Block / Town</th><th>Size</th><th>Status</th><th>Customer Name</th>
         <th>Net Amount (Rs.)</th><th>Received (Rs.)</th><th>Balance (Rs.)</th>
     </tr></thead><tbody>`;
 
@@ -615,20 +624,22 @@ function plotsExcel() {
         const num = v => parseFloat(v.replace(/,/g, '')) || 0;
         html += `<tr><td>${i+1}</td><td>${c[1].textContent.trim()}</td>
             <td>${c[2].textContent.trim().replace(/\s+/g,' ')}</td>
-            <td>${c[3].textContent.trim()}</td><td>${c[4].textContent.trim()}</td>
-            <td style="mso-number-format:&quot;#,##0&quot;">${num(c[5].textContent)}</td>
+            <td>${c[3].textContent.trim()}</td>
+            <td>${c[4].textContent.trim()}</td><td>${c[5].textContent.trim()}</td>
             <td style="mso-number-format:&quot;#,##0&quot;">${num(c[6].textContent)}</td>
-            <td style="mso-number-format:&quot;#,##0&quot;">${num(c[7].textContent)}</td></tr>`;
+            <td style="mso-number-format:&quot;#,##0&quot;">${num(c[7].textContent)}</td>
+            <td style="mso-number-format:&quot;#,##0&quot;">${num(c[8].textContent)}</td></tr>`;
     });
 
     if (tfoot) {
         const fc  = tfoot.querySelectorAll('td');
         const num = v => parseFloat(v.textContent.replace(/,/g, '')) || 0;
         html += `</tbody><tfoot><tr style="font-weight:bold;background:#e9ecef;">
-            <td colspan="5">Totals</td>
-            <td style="mso-number-format:&quot;#,##0&quot;">${num(fc[1])}</td>
-            <td style="mso-number-format:&quot;#,##0&quot;">${num(fc[2])}</td>
+            <td colspan="3">Totals</td>
+            <td>${fc[1].textContent.trim()}</td><td colspan="2"></td>
             <td style="mso-number-format:&quot;#,##0&quot;">${num(fc[3])}</td>
+            <td style="mso-number-format:&quot;#,##0&quot;">${num(fc[4])}</td>
+            <td style="mso-number-format:&quot;#,##0&quot;">${num(fc[5])}</td>
         </tr></tfoot>`;
     }
 

@@ -175,17 +175,6 @@
                 {% endfor %}
             </tbody>
             {% if grouped %}
-            <tfoot class="table-dark fw-bold">
-                <tr>
-                    <td colspan="4" class="text-end">Grand Total</td>
-                    <td class="text-end">{{ grand_marlas|floatformat:2 }}</td>
-                    <td></td>
-                    <td class="text-end">{{ total_price|floatformat:0|intcomma }}</td>
-                    <td class="text-end text-success">{{ total_received|floatformat:0|intcomma }}</td>
-                    <td class="text-end text-danger">{{ total_balance|floatformat:0|intcomma }}</td>
-                    <td colspan="2"></td>
-                </tr>
-            </tfoot>
             {% endif %}
         </table>
 

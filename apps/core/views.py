@@ -143,13 +143,16 @@ def dashboard(request):
     plots_detail         = []
     plots_total_net      = 0
     plots_total_received = 0
+    plots_total_marla    = 0
     for p in _all_plots:
         bk       = _booking_map.get(p.pk)
         net      = (bk.net_price or 0) if bk else (p.price or 0)
         received = (bk.amount_received or 0) if bk else 0
         balance  = net - received
+        size     = float(p.size or 0)
         plots_total_net      += net
         plots_total_received += received
+        plots_total_marla    += size
         plots_detail.append({
             'plot_no':   p.plot_no,
             'block':     p.block.name,
@@ -159,6 +162,8 @@ def dashboard(request):
             'net_price': net,
             'received':  received,
             'balance':   balance,
+            'size':      size,
+            'size_unit': p.size_unit,
         })
     plots_detail.sort(key=lambda d: (d['town'], d['block'], _nat_key(d)))
     plots_total_balance = plots_total_net - plots_total_received
@@ -178,6 +183,7 @@ def dashboard(request):
         'plots_total_net':        plots_total_net,
         'plots_total_received':   plots_total_received,
         'plots_total_balance':    plots_total_balance,
+        'plots_total_marla':      plots_total_marla,
         'all_towns':              all_towns,
         'all_blocks':             all_blocks,
     }
