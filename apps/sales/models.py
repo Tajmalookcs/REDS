@@ -44,8 +44,10 @@ class Booking(models.Model):
                         default='ACTIVE'
                       )
     possession      = models.BooleanField(default=False)
+    possession_image= models.ImageField(upload_to='bookings/possession/', null=True, blank=True)
     registry_no     = models.CharField(max_length=100, blank=True)
     inteqal_no      = models.CharField(max_length=100, blank=True)
+    registry_image  = models.ImageField(upload_to='bookings/registry/', null=True, blank=True)
     notes           = models.TextField(blank=True)
     is_deleted      = models.BooleanField(default=False)
     created_at      = models.DateTimeField(auto_now_add=True)

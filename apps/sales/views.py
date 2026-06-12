@@ -443,6 +443,8 @@ def booking_possession(request, pk):
     booking = get_object_or_404(Booking, pk=pk, is_deleted=False)
     if request.method == 'POST':
         booking.possession = not booking.possession
+        if request.FILES.get('possession_image'):
+            booking.possession_image = request.FILES['possession_image']
         booking.save()
         status = 'given' if booking.possession else 'revoked'
         messages.success(request, f'Possession {status}.')
@@ -459,6 +461,8 @@ def booking_registry(request, pk):
     if request.method == 'POST':
         booking.registry_no = request.POST.get('registry_no', '').strip()
         booking.inteqal_no  = request.POST.get('inteqal_no', '').strip()
+        if request.FILES.get('registry_image'):
+            booking.registry_image = request.FILES['registry_image']
         booking.save()
         messages.success(request, 'Registry / Inteqal details saved.')
     return redirect('sales:booking_detail', pk=pk)

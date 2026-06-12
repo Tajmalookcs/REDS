@@ -147,10 +147,25 @@
                 {% else %}
                     <span class="badge bg-secondary fs-6"><i class="bi bi-clock"></i> Not Given</span>
                 {% endif %}
+                {% if booking.possession_image %}
+                <div class="mt-1">
+                    <a href="{{ booking.possession_image.url }}" target="_blank"
+                       class="btn btn-sm btn-outline-info">
+                        <i class="bi bi-image"></i> View Image
+                    </a>
+                </div>
+                {% endif %}
             </div>
             <div class="col-md-2">
-                <form method="POST" action="{% url 'sales:booking_possession' booking.pk %}">
+                <form method="POST" action="{% url 'sales:booking_possession' booking.pk %}"
+                      enctype="multipart/form-data">
                     {% csrf_token %}
+                    {% if not booking.possession %}
+                    <div class="mb-1">
+                        <input type="file" name="possession_image" class="form-control form-control-sm"
+                               accept="image/*">
+                    </div>
+                    {% endif %}
                     <button type="submit" class="btn btn-sm
                         {% if booking.possession %}btn-outline-warning{% else %}btn-outline-success{% endif %}">
                         {% if booking.possession %}
@@ -175,6 +190,14 @@
                     <div>
                         <div class="text-muted small">Inteqal No.</div>
                         <div class="fw-semibold">{{ booking.inteqal_no }}</div>
+                    </div>
+                    {% endif %}
+                    {% if booking.registry_image %}
+                    <div>
+                        <a href="{{ booking.registry_image.url }}" target="_blank"
+                           class="btn btn-sm btn-outline-info">
+                            <i class="bi bi-image"></i> Registry Image
+                        </a>
                     </div>
                     {% endif %}
                     <button class="btn btn-sm btn-outline-primary ms-auto"
@@ -454,7 +477,8 @@
 <div class="modal fade" id="registryModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="POST" action="{% url 'sales:booking_registry' booking.pk %}">
+            <form method="POST" action="{% url 'sales:booking_registry' booking.pk %}"
+                  enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="modal-header">
                     <h6 class="modal-title"><i class="bi bi-file-earmark-text"></i> Registry / Inteqal Details</h6>
@@ -471,6 +495,20 @@
                             <label class="form-label">Inteqal No. <span class="text-muted small">(Mutation)</span></label>
                             <input type="text" name="inteqal_no" class="form-control"
                                    value="{{ booking.inteqal_no }}" placeholder="Leave blank if not transferred">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Registry Image</label>
+                            {% if booking.registry_image %}
+                            <div class="mb-1">
+                                <a href="{{ booking.registry_image.url }}" target="_blank"
+                                   class="btn btn-sm btn-outline-info">
+                                    <i class="bi bi-image"></i> View Current Image
+                                </a>
+                                <span class="text-muted small ms-1">Upload new to replace</span>
+                            </div>
+                            {% endif %}
+                            <input type="file" name="registry_image" class="form-control"
+                                   accept="image/*">
                         </div>
                     </div>
                 </div>

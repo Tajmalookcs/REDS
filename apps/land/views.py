@@ -68,7 +68,7 @@ def contract_add(request):
 
     if request.method == 'POST':
         landlord = get_object_or_404(Landlord, pk=request.POST.get('landlord'))
-        LandContract.objects.create(
+        contract = LandContract.objects.create(
             landlord      = landlord,
             title         = request.POST.get('title'),
             total_area    = request.POST.get('total_area'),
@@ -82,6 +82,9 @@ def contract_add(request):
             notes         = request.POST.get('notes', ''),
             created_by    = request.user,
         )
+        if request.FILES.get('contract_pdf'):
+            contract.contract_pdf = request.FILES['contract_pdf']
+            contract.save()
         messages.success(request, 'Land contract added.')
         return redirect('land:contract_list')
 
@@ -108,6 +111,8 @@ def contract_edit(request, pk):
         contract.status         = request.POST.get('status', 'ACTIVE')
         contract.location       = request.POST.get('location', '')
         contract.notes          = request.POST.get('notes', '')
+        if request.FILES.get('contract_pdf'):
+            contract.contract_pdf = request.FILES['contract_pdf']
         contract.save()
         messages.success(request, 'Contract updated.')
         return redirect('land:contract_list')

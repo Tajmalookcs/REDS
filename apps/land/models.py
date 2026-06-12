@@ -77,6 +77,7 @@ class LandContract(models.Model):
                         default='ACTIVE'
                       )
     notes           = models.TextField(blank=True)
+    contract_pdf    = models.FileField(upload_to='contracts/pdf/', null=True, blank=True)
     is_deleted      = models.BooleanField(default=False)
     created_at      = models.DateTimeField(auto_now_add=True)
     updated_at      = models.DateTimeField(auto_now=True)

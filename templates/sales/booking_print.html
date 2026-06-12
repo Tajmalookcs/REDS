@@ -284,6 +284,29 @@
         </div>
     </div>
 
+    <!-- Possession / Registry / Inteqal -->
+    {% if booking.possession or booking.registry_no or booking.inteqal_no %}
+    <div class="section-title">Possession &amp; Registry Details</div>
+    <div class="grid">
+        <div class="row">
+            <span class="label">Possession:</span>
+            <span class="value">{% if booking.possession %}Given{% else %}Not Given{% endif %}</span>
+        </div>
+        {% if booking.registry_no %}
+        <div class="row">
+            <span class="label">Registry No.:</span>
+            <span class="value">{{ booking.registry_no }}</span>
+        </div>
+        {% endif %}
+        {% if booking.inteqal_no %}
+        <div class="row">
+            <span class="label">Inteqal No.:</span>
+            <span class="value">{{ booking.inteqal_no }}</span>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <!-- Amount Received Section -->
     {% if receipts %}
     <div class="section-title">Amount Received</div>
