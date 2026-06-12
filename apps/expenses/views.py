@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.utils import timezone
 from .models import Expense, ExpenseCategory
 from apps.development.models import Town
 
@@ -113,6 +114,7 @@ def expense_edit(request, pk):
         'categories': categories,
         'towns':      towns,
         'title':      'Edit Expense',
+        'today':      timezone.localdate().isoformat(),
     })
 
 @login_required
