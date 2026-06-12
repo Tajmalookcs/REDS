@@ -20,12 +20,26 @@ def expense_list(request):
     if town_id:
         expenses = expenses.filter(town_id=town_id)
 
+    from django.db.models import Sum
+    total = expenses.aggregate(t=Sum('amount'))['t'] or 0
+
+    # Group by town
+    groups = {}
+    for e in expenses:
+        key = e.town.name if e.town else '— No Town —'
+        if key not in groups:
+            groups[key] = {'expenses': [], 'subtotal': 0}
+        groups[key]['expenses'].append(e)
+        groups[key]['subtotal'] += e.amount
+
     return render(request, 'expenses/expense_list.html', {
         'expenses':          expenses,
+        'groups':            groups,
         'categories':        categories,
         'towns':             towns,
         'selected_category': category_id,
         'selected_town':     town_id,
+        'total':             total,
     })
 
 
@@ -35,26 +49,28 @@ def expense_add(request):
     towns      = Town.objects.filter(is_deleted=False).order_by('name')
 
     if request.method == 'POST':
-        town_pk = request.POST.get('town')
-        Expense.objects.create(
-            category     = ExpenseCategory.objects.filter(
-                               pk=request.POST.get('category')
-                           ).first(),
-            town         = Town.objects.filter(pk=town_pk).first() if town_pk else None,
-            title        = request.POST.get('title'),
-            amount       = request.POST.get('amount'),
-            expense_date = request.POST.get('expense_date'),
-            payment_mode = request.POST.get('payment_mode', 'CASH'),
-            paid_to      = request.POST.get('paid_to', ''),
-            cheque_no    = request.POST.get('cheque_no', ''),
-            cheque_bank  = request.POST.get('cheque_bank', ''),
-            cheque_date  = request.POST.get('cheque_date') or None,
-            narration    = request.POST.get('narration', ''),
-            image        = request.FILES.get('image'),
-            created_by   = request.user,
-        )
-        messages.success(request, 'Expense recorded.')
-        return redirect('expenses:expense_list')
+        try:
+            town_pk     = request.POST.get('town', '').strip()
+            category_pk = request.POST.get('category', '').strip()
+            Expense.objects.create(
+                category     = ExpenseCategory.objects.filter(pk=category_pk).first() if category_pk else None,
+                town         = Town.objects.filter(pk=town_pk).first() if town_pk else None,
+                title        = request.POST.get('title'),
+                amount       = request.POST.get('amount'),
+                expense_date = request.POST.get('expense_date'),
+                payment_mode = request.POST.get('payment_mode', 'CASH'),
+                paid_to      = request.POST.get('paid_to', ''),
+                cheque_no    = request.POST.get('cheque_no', ''),
+                cheque_bank  = request.POST.get('cheque_bank', ''),
+                cheque_date  = request.POST.get('cheque_date') or None,
+                narration    = request.POST.get('narration', ''),
+                image        = request.FILES.get('image'),
+                created_by   = request.user,
+            )
+            messages.success(request, 'Expense recorded.')
+            return redirect('expenses:expense_list')
+        except Exception as e:
+            messages.error(request, f'Could not save expense: {e}')
 
     from django.utils import timezone
     return render(request, 'expenses/expense_form.html', {
@@ -106,6 +122,37 @@ def expense_delete(request, pk):
     expense.save()
     messages.success(request, 'Expense deleted.')
     return redirect('expenses:expense_list')
+
+
+@login_required
+def expense_print(request):
+    from django.db.models import Sum
+    from apps.core.models import BusinessProfile
+    category_id = request.GET.get('category')
+    town_id     = request.GET.get('town')
+    expenses    = Expense.objects.filter(
+                    is_deleted=False
+                  ).select_related('category', 'town').order_by('town__name', '-expense_date')
+    if category_id:
+        expenses = expenses.filter(category_id=category_id)
+    if town_id:
+        expenses = expenses.filter(town_id=town_id)
+
+    total = expenses.aggregate(t=Sum('amount'))['t'] or 0
+    groups = {}
+    for e in expenses:
+        key = e.town.name if e.town else '— No Town —'
+        if key not in groups:
+            groups[key] = {'expenses': [], 'subtotal': 0}
+        groups[key]['expenses'].append(e)
+        groups[key]['subtotal'] += e.amount
+
+    business = BusinessProfile.objects.first()
+    return render(request, 'expenses/expense_print.html', {
+        'groups':   groups,
+        'total':    total,
+        'business': business,
+    })
 
 
 @login_required

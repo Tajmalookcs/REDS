@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Expenses Report</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; font-size: 11px; color: #000; }
+        .header { text-align: center; margin-bottom: 12px; }
+        .header h2 { font-size: 16px; }
+        .header .sub { font-size: 11px; color: #555; margin-top: 2px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
+        th { background: #1F3864; color: #fff; padding: 5px 6px; text-align: left; font-size: 10px; }
+        th.r, td.r { text-align: right; }
+        td { padding: 4px 6px; border-bottom: 1px solid #ddd; }
+        tr:nth-child(even) td { background: #f5f9ff; }
+        .town-hdr td { background: #2E75B6; color: #fff; font-weight: bold; padding: 5px 8px; font-size: 11px; }
+        .town-total td { background: #BDD7EE; font-weight: bold; }
+        .grand-total td { background: #1F3864; color: #fff; font-weight: bold; }
+        .town-hdr:nth-child(even) td { background: #2E75B6; }
+        .town-total:nth-child(even) td { background: #BDD7EE; }
+        .no-print { text-align: center; margin-bottom: 10px; }
+        @media print { .no-print { display: none; } }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    {% if business %}
+    <h2>{{ business.name }}</h2>
+    <div class="sub">{{ business.address }}</div>
+    {% endif %}
+    <h2 style="margin-top:6px;">Expenses Report</h2>
+    <div class="sub">Generated: {% now "d M Y, H:i" %}</div>
+</div>
+
+<div class="no-print">
+    <button onclick="window.print()" style="padding:6px 20px;font-size:13px;cursor:pointer;">
+        Print
+    </button>
+</div>
+
+{% load humanize %}
+<table>
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Date</th>
+            <th>Title</th>
+            <th>Category</th>
+            <th>Paid To</th>
+            <th>Mode</th>
+            <th class="r">Amount (Rs.)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for town_name, group in groups.items %}
+        <tr class="town-hdr">
+            <td colspan="7">{{ town_name }}</td>
+        </tr>
+        {% for e in group.expenses %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ e.expense_date }}</td>
+            <td>{{ e.title }}</td>
+            <td>{{ e.category.name|default:"—" }}</td>
+            <td>{{ e.paid_to|default:"—" }}</td>
+            <td>{{ e.payment_mode }}</td>
+            <td class="r">{{ e.amount|floatformat:0|intcomma }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="town-total">
+            <td colspan="6" class="r">{{ town_name }} Total</td>
+            <td class="r">{{ group.subtotal|floatformat:0|intcomma }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="text-align:center;padding:12px;">No expenses found.</td></tr>
+        {% endfor %}
+    </tbody>
+    {% if groups %}
+    <tfoot>
+        <tr class="grand-total">
+            <td colspan="6" class="r">Grand Total</td>
+            <td class="r">{{ total|floatformat:0|intcomma }}</td>
+        </tr>
+    </tfoot>
+    {% endif %}
+</table>
+
+</body>
+</html>

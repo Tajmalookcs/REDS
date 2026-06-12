@@ -40,6 +40,11 @@
                    class="btn btn-sm btn-outline-info me-1">
                     <i class="bi bi-tags"></i> Categories
                 </a>
+                <a href="{% url 'expenses:expense_print' %}?{% if selected_category %}category={{ selected_category }}&{% endif %}{% if selected_town %}town={{ selected_town }}{% endif %}"
+                   target="_blank"
+                   class="btn btn-sm btn-outline-secondary me-1">
+                    <i class="bi bi-printer"></i> Print
+                </a>
                 <a href="{% url 'expenses:expense_add' %}"
                    class="btn btn-primary btn-sm">
                     <i class="bi bi-plus-circle"></i> Add Expense
@@ -54,7 +59,6 @@
                     <th>Date</th>
                     <th>Title</th>
                     <th>Category</th>
-                    <th>Town</th>
                     <th>Paid To</th>
                     <th>Amount (Rs.)</th>
                     <th>Mode</th>
@@ -62,13 +66,19 @@
                 </tr>
             </thead>
             <tbody>
-                {% for e in expenses %}
+                {% for town_name, group in groups.items %}
+                <!-- Town Header -->
+                <tr class="table-primary">
+                    <td colspan="9" class="fw-bold py-2 ps-2">
+                        <i class="bi bi-building"></i> {{ town_name }}
+                    </td>
+                </tr>
+                {% for e in group.expenses %}
                 <tr>
                     <td>{{ forloop.counter }}</td>
                     <td>{{ e.expense_date }}</td>
                     <td class="fw-semibold">{{ e.title }}</td>
                     <td>{{ e.category.name|default:"—" }}</td>
-                    <td>{{ e.town.name|default:"—" }}</td>
                     <td>{{ e.paid_to|default:"—" }}</td>
                     <td class="text-danger fw-semibold">{{ e.amount|floatformat:0 }}</td>
                     <td>
@@ -99,6 +109,13 @@
                         </button>
                         {% endif %}
                     </td>
+                </tr>
+                {% endfor %}
+                <!-- Town Subtotal -->
+                <tr class="table-info fw-bold">
+                    <td colspan="5" class="text-end">{{ town_name }} Total</td>
+                    <td class="text-danger">Rs. {{ group.subtotal|floatformat:0 }}</td>
+                    <td colspan="2"></td>
                 </tr>
                 {% empty %}
                 <tr>
