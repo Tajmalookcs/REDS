@@ -435,6 +435,36 @@ def booking_print(request, pk):
     })
 
 # ======================================================
+# POSSESSION TOGGLE
+# ======================================================
+
+@login_required
+def booking_possession(request, pk):
+    booking = get_object_or_404(Booking, pk=pk, is_deleted=False)
+    if request.method == 'POST':
+        booking.possession = not booking.possession
+        booking.save()
+        status = 'given' if booking.possession else 'revoked'
+        messages.success(request, f'Possession {status}.')
+    return redirect('sales:booking_detail', pk=pk)
+
+
+# ======================================================
+# REGISTRY / INTEQAL UPDATE
+# ======================================================
+
+@login_required
+def booking_registry(request, pk):
+    booking = get_object_or_404(Booking, pk=pk, is_deleted=False)
+    if request.method == 'POST':
+        booking.registry_no = request.POST.get('registry_no', '').strip()
+        booking.inteqal_no  = request.POST.get('inteqal_no', '').strip()
+        booking.save()
+        messages.success(request, 'Registry / Inteqal details saved.')
+    return redirect('sales:booking_detail', pk=pk)
+
+
+# ======================================================
 # PLOT TRANSFER
 # ======================================================
 

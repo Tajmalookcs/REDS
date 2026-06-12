@@ -442,12 +442,18 @@ def plot_edit(request, pk):
     plot_marla = int(existing_marlas)
     plot_sqft  = round((existing_marlas - plot_marla) * 270)
 
+    from apps.sales.models import Booking as _Booking
+    active_booking = _Booking.objects.filter(
+        plot=plot, is_deleted=False, status__in=['ACTIVE', 'COMPLETED']
+    ).first()
+
     return render(request, 'development/plot_form.html', {
-        'plot':       plot,
-        'blocks':     blocks,
-        'title':      'Edit Plot',
-        'plot_marla': plot_marla,
-        'plot_sqft':  plot_sqft,
+        'plot':           plot,
+        'blocks':         blocks,
+        'title':          'Edit Plot',
+        'plot_marla':     plot_marla,
+        'plot_sqft':      plot_sqft,
+        'active_booking': active_booking,
     })
 
 
@@ -610,40 +616,29 @@ def map_editor(request, pk):
     town_map = get_object_or_404(TownMap, pk=pk)
     town     = town_map.town
 
-    if town_map.block:
-        plots = Plot.objects.filter(
-            block=town_map.block,
-            is_deleted=False
-        ).extra(
-            select={
-                'plot_alpha': "TRIM(TRIM(plot_no, '0123456789'), ' ')",
-                'plot_num':   "CAST(COALESCE(NULLIF(TRIM(plot_no, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz- '), ''), '0') AS INTEGER)",
-            }
-        ).order_by('plot_alpha', 'plot_num')
-    else:
-        plots = Plot.objects.filter(
-            block__town=town,
-            is_deleted=False
-        ).select_related('block').extra(
-            select={
-                'plot_alpha': "TRIM(TRIM(plot_no, '0123456789'), ' ')",
-                'plot_num':   "CAST(COALESCE(NULLIF(TRIM(plot_no, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz- '), ''), '0') AS INTEGER)",
-            }
-        ).order_by('block__name', 'plot_alpha', 'plot_num')
+    plots = Plot.objects.filter(
+        block__town=town,
+        is_deleted=False
+    ).select_related('block').extra(
+        select={
+            'plot_alpha': "TRIM(TRIM(plot_no, '0123456789'), ' ')",
+            'plot_num':   "CAST(COALESCE(NULLIF(TRIM(plot_no, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz- '), ''), '0') AS INTEGER)",
+        }
+    ).order_by('block__name', 'plot_alpha', 'plot_num')
 
     existing = PlotCoordinate.objects.filter(
         town_map=town_map
     ).select_related('plot')
 
-    coords_data = []
+    coords_data = {}
     for c in existing:
-        coords_data.append({
+        coords_data[str(c.plot.pk)] = {
             'id':          c.pk,
             'plot_id':     c.plot.pk,
             'plot_no':     c.plot.plot_no,
             'plot_status': c.plot.status,
             'coordinates': c.coordinates,
-        })
+        }
 
     marked_plot_ids = [c.plot.pk for c in existing]
 

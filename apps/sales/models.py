@@ -43,6 +43,9 @@ class Booking(models.Model):
                         choices=STATUS_CHOICES,
                         default='ACTIVE'
                       )
+    possession      = models.BooleanField(default=False)
+    registry_no     = models.CharField(max_length=100, blank=True)
+    inteqal_no      = models.CharField(max_length=100, blank=True)
     notes           = models.TextField(blank=True)
     is_deleted      = models.BooleanField(default=False)
     created_at      = models.DateTimeField(auto_now_add=True)

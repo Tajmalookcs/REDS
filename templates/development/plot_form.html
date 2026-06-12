@@ -118,6 +118,43 @@
                         </a>
                     </div>
                 </form>
+
+                {% if active_booking %}
+                <hr>
+                <div class="mt-3">
+                    <div class="text-muted small mb-2 fw-semibold">
+                        Booking: <a href="{% url 'sales:booking_detail' active_booking.pk %}">{{ active_booking.booking_no }}</a>
+                        — {{ active_booking.customer.name }}
+                    </div>
+                    <div class="d-flex gap-3 flex-wrap align-items-center mb-2">
+                        <div>
+                            <div class="text-muted small">Possession</div>
+                            {% if active_booking.possession %}
+                                <span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Given</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Not Given</span>
+                            {% endif %}
+                        </div>
+                        {% if active_booking.registry_no %}
+                        <div>
+                            <div class="text-muted small">Registry No.</div>
+                            <div class="fw-semibold">{{ active_booking.registry_no }}</div>
+                        </div>
+                        {% endif %}
+                        {% if active_booking.inteqal_no %}
+                        <div>
+                            <div class="text-muted small">Inteqal No.</div>
+                            <div class="fw-semibold">{{ active_booking.inteqal_no }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <a href="{% url 'sales:booking_detail' active_booking.pk %}"
+                       class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-box-arrow-up-right"></i> Manage in Booking
+                    </a>
+                </div>
+                {% endif %}
+
             </div>
         </div>
     </div>

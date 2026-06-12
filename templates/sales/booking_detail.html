@@ -134,6 +134,62 @@
     </div>
 </div>
 
+<!-- Possession & Registry Card -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-center">
+
+            <!-- Possession -->
+            <div class="col-md-3">
+                <div class="text-muted small mb-1">Possession</div>
+                {% if booking.possession %}
+                    <span class="badge bg-success fs-6"><i class="bi bi-check-circle-fill"></i> Given</span>
+                {% else %}
+                    <span class="badge bg-secondary fs-6"><i class="bi bi-clock"></i> Not Given</span>
+                {% endif %}
+            </div>
+            <div class="col-md-2">
+                <form method="POST" action="{% url 'sales:booking_possession' booking.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm
+                        {% if booking.possession %}btn-outline-warning{% else %}btn-outline-success{% endif %}">
+                        {% if booking.possession %}
+                            <i class="bi bi-x-circle"></i> Revoke
+                        {% else %}
+                            <i class="bi bi-check-circle"></i> Mark Given
+                        {% endif %}
+                    </button>
+                </form>
+            </div>
+
+            <!-- Registry / Inteqal -->
+            <div class="col-md-7">
+                <div class="d-flex gap-4 align-items-center flex-wrap">
+                    {% if booking.registry_no %}
+                    <div>
+                        <div class="text-muted small">Registry No.</div>
+                        <div class="fw-semibold">{{ booking.registry_no }}</div>
+                    </div>
+                    {% endif %}
+                    {% if booking.inteqal_no %}
+                    <div>
+                        <div class="text-muted small">Inteqal No.</div>
+                        <div class="fw-semibold">{{ booking.inteqal_no }}</div>
+                    </div>
+                    {% endif %}
+                    <button class="btn btn-sm btn-outline-primary ms-auto"
+                            data-bs-toggle="modal" data-bs-target="#registryModal">
+                        <i class="bi bi-pencil"></i>
+                        {% if booking.registry_no or booking.inteqal_no %}Edit{% else %}Add{% endif %}
+                        Registry / Inteqal
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
 <div class="row g-3">
 
     <!-- Receipts -->
@@ -391,6 +447,43 @@
     </div>
 </div>
 {% endif %}
+
+<!-- ======================== -->
+<!-- MODAL: Registry/Inteqal  -->
+<!-- ======================== -->
+<div class="modal fade" id="registryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'sales:booking_registry' booking.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h6 class="modal-title"><i class="bi bi-file-earmark-text"></i> Registry / Inteqal Details</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Registry No. <span class="text-muted small">(Sale Deed)</span></label>
+                            <input type="text" name="registry_no" class="form-control"
+                                   value="{{ booking.registry_no }}" placeholder="Leave blank if not registered">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Inteqal No. <span class="text-muted small">(Mutation)</span></label>
+                            <input type="text" name="inteqal_no" class="form-control"
+                                   value="{{ booking.inteqal_no }}" placeholder="Leave blank if not transferred">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Save
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <!-- ======================== -->
 <!-- MODAL: Add Installment   -->

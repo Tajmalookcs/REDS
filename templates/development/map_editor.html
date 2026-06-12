@@ -84,7 +84,7 @@
            class="btn btn-sm btn-success">
             <i class="bi bi-eye"></i> View Map
         </a>
-        <a href="{% url 'development:map_list' %}"
+        <a href="{% url 'development:map_list' town_map.town.pk %}"
            class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Back
         </a>
@@ -179,8 +179,8 @@
 {% block extra_js %}
 <script>
 const COORDS_DATA    = {{ coords_json|safe }};
-const SAVE_URL       = "{% url 'development:map_save_coords' town_map.pk %}";
-const DEL_COORD_URL  = "{% url 'development:map_delete_coord' 0 %}".replace('/0/', '/');
+const SAVE_URL       = "{% url 'development:map_save_coordinate' town_map.pk %}";
+const DEL_COORD_URL  = "{% url 'development:map_delete_coordinate' 0 %}".replace('/0/', '/');
 const CSRF_TOKEN     = "{{ csrf_token }}";
 
 const canvas      = document.getElementById('mapCanvas');
