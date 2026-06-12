@@ -8,8 +8,7 @@
 
         <form method="GET" class="row g-2 mb-3">
             <div class="col-md-3">
-                <select name="category" class="form-select form-select-sm"
-                        onchange="this.form.submit()">
+                <select name="category" class="form-select form-select-sm">
                     <option value="">— All Categories —</option>
                     {% for cat in categories %}
                     <option value="{{ cat.pk }}"
@@ -19,9 +18,8 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
-                <select name="town" class="form-select form-select-sm"
-                        onchange="this.form.submit()">
+            <div class="col-md-2">
+                <select name="town" class="form-select form-select-sm">
                     <option value="">— All Towns —</option>
                     {% for t in towns %}
                     <option value="{{ t.pk }}"
@@ -31,7 +29,18 @@
                     {% endfor %}
                 </select>
             </div>
+            <div class="col-md-2">
+                <input type="date" name="date_from" class="form-control form-control-sm"
+                       value="{{ date_from }}" placeholder="From date">
+            </div>
+            <div class="col-md-2">
+                <input type="date" name="date_to" class="form-control form-control-sm"
+                       value="{{ date_to }}" placeholder="To date">
+            </div>
             <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="bi bi-funnel"></i> Filter
+                </button>
                 <a href="{% url 'expenses:expense_list' %}"
                    class="btn btn-sm btn-outline-secondary">Clear</a>
             </div>
@@ -40,7 +49,7 @@
                    class="btn btn-sm btn-outline-info me-1">
                     <i class="bi bi-tags"></i> Categories
                 </a>
-                <a href="{% url 'expenses:expense_print' %}?{% if selected_category %}category={{ selected_category }}&{% endif %}{% if selected_town %}town={{ selected_town }}{% endif %}"
+                <a href="{% url 'expenses:expense_print' %}?{% if selected_category %}category={{ selected_category }}&{% endif %}{% if selected_town %}town={{ selected_town }}&{% endif %}{% if date_from %}date_from={{ date_from }}&{% endif %}{% if date_to %}date_to={{ date_to }}{% endif %}"
                    target="_blank"
                    class="btn btn-sm btn-outline-secondary me-1">
                     <i class="bi bi-printer"></i> Print

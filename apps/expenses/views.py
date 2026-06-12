@@ -10,6 +10,8 @@ from apps.development.models import Town
 def expense_list(request):
     category_id = request.GET.get('category')
     town_id     = request.GET.get('town')
+    date_from   = request.GET.get('date_from', '').strip()
+    date_to     = request.GET.get('date_to', '').strip()
     expenses    = Expense.objects.filter(
                     is_deleted=False
                   ).select_related('category', 'town').order_by('-expense_date')
@@ -20,6 +22,10 @@ def expense_list(request):
         expenses = expenses.filter(category_id=category_id)
     if town_id:
         expenses = expenses.filter(town_id=town_id)
+    if date_from:
+        expenses = expenses.filter(expense_date__gte=date_from)
+    if date_to:
+        expenses = expenses.filter(expense_date__lte=date_to)
 
     from django.db.models import Sum
     total = expenses.aggregate(t=Sum('amount'))['t'] or 0
@@ -40,6 +46,8 @@ def expense_list(request):
         'towns':             towns,
         'selected_category': category_id,
         'selected_town':     town_id,
+        'date_from':         date_from,
+        'date_to':           date_to,
         'total':             total,
     })
 
@@ -132,6 +140,8 @@ def expense_print(request):
     from apps.core.models import BusinessProfile
     category_id = request.GET.get('category')
     town_id     = request.GET.get('town')
+    date_from   = request.GET.get('date_from', '').strip()
+    date_to     = request.GET.get('date_to', '').strip()
     expenses    = Expense.objects.filter(
                     is_deleted=False
                   ).select_related('category', 'town').order_by('town__name', '-expense_date')
@@ -139,6 +149,10 @@ def expense_print(request):
         expenses = expenses.filter(category_id=category_id)
     if town_id:
         expenses = expenses.filter(town_id=town_id)
+    if date_from:
+        expenses = expenses.filter(expense_date__gte=date_from)
+    if date_to:
+        expenses = expenses.filter(expense_date__lte=date_to)
 
     total = expenses.aggregate(t=Sum('amount'))['t'] or 0
     groups = {}
