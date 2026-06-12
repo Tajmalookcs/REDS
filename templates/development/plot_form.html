@@ -58,19 +58,20 @@
                         </div>
 
                         <div class="col-md-3">
-                            <label class="form-label fw-semibold">Size <span class="text-danger">*</span></label>
-                            <input type="number" name="size" class="form-control"
-                                   value="{{ plot.size|default:'' }}"
-                                   step="0.01" required>
+                            <label class="form-label fw-semibold">Marla <span class="text-danger">*</span></label>
+                            <input type="number" name="size_marla" id="size_marla" class="form-control"
+                                   value="{{ plot_marla|default:'' }}"
+                                   min="0" step="1" placeholder="0" required
+                                   oninput="updateMarlaDisplay()">
                         </div>
 
                         <div class="col-md-3">
-                            <label class="form-label fw-semibold">Unit</label>
-                            <select name="size_unit" class="form-select">
-                                <option value="MARLA" {% if not plot or plot.size_unit == 'MARLA' %}selected{% endif %}>Marla</option>
-                                <option value="KANAL" {% if plot and plot.size_unit == 'KANAL' %}selected{% endif %}>Kanal</option>
-                                <option value="SQFT"  {% if plot and plot.size_unit == 'SQFT'  %}selected{% endif %}>Sq Ft</option>
-                            </select>
+                            <label class="form-label fw-semibold">Sqft</label>
+                            <input type="number" name="size_sqft" id="size_sqft" class="form-control"
+                                   value="{{ plot_sqft|default:'0' }}"
+                                   min="0" max="269" step="1" placeholder="0"
+                                   oninput="updateMarlaDisplay()">
+                            <div id="marla_total_hint" class="form-text text-muted"></div>
                         </div>
 
                         <div class="col-md-6">
@@ -181,6 +182,19 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>
+function updateMarlaDisplay() {
+    const m = parseFloat(document.getElementById('size_marla').value) || 0;
+    const s = parseFloat(document.getElementById('size_sqft').value)  || 0;
+    const total = m + s / 270;
+    const hint  = document.getElementById('marla_total_hint');
+    if (m > 0 || s > 0) {
+        hint.textContent = '= ' + total.toFixed(4) + ' Marla total';
+    } else {
+        hint.textContent = '';
+    }
+}
+</script>
 <script>
 const allBlocks = [
     {% for b in blocks %}

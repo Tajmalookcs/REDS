@@ -152,7 +152,7 @@ def journal_on_expense(expense, user=None):
 # ─────────────────────────────────────────
 def journal_on_refund_payment(cancellation, bank_account=None, user=None):
     amount    = cancellation.refund_paid
-    ref       = f"REFUND-{cancellation.booking.booking_no}"
+    ref       = f"REFUND-BK{cancellation.booking.pk}"
     narration = f"Refund paid — {cancellation.booking.customer.name} — {ref}"
 
     if cancellation.refund_payment_mode == 'CASH':

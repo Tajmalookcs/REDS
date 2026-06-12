@@ -19,6 +19,18 @@
                     {% endfor %}
                 </select>
             </div>
+            <div class="col-md-3">
+                <select name="town" class="form-select form-select-sm"
+                        onchange="this.form.submit()">
+                    <option value="">— All Towns —</option>
+                    {% for t in towns %}
+                    <option value="{{ t.pk }}"
+                        {% if selected_town == t.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ t.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
             <div class="col-auto">
                 <a href="{% url 'expenses:expense_list' %}"
                    class="btn btn-sm btn-outline-secondary">Clear</a>
@@ -42,6 +54,7 @@
                     <th>Date</th>
                     <th>Title</th>
                     <th>Category</th>
+                    <th>Town</th>
                     <th>Paid To</th>
                     <th>Amount (Rs.)</th>
                     <th>Mode</th>
@@ -55,6 +68,7 @@
                     <td>{{ e.expense_date }}</td>
                     <td class="fw-semibold">{{ e.title }}</td>
                     <td>{{ e.category.name|default:"—" }}</td>
+                    <td>{{ e.town.name|default:"—" }}</td>
                     <td>{{ e.paid_to|default:"—" }}</td>
                     <td class="text-danger fw-semibold">{{ e.amount|floatformat:0 }}</td>
                     <td>
@@ -88,7 +102,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="8" class="text-center text-muted py-4">
+                    <td colspan="9" class="text-center text-muted py-4">
                         No expenses recorded yet.
                     </td>
                 </tr>

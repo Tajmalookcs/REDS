@@ -50,11 +50,20 @@
                 <a href="{% url 'development:plot_list' %}"
                    class="btn btn-sm btn-outline-secondary">Clear</a>
             </div>
-            <div class="col text-end">
+            <div class="col text-end d-flex gap-1 justify-content-end flex-wrap">
+                <a href="{% url 'development:plot_list_excel' %}?{% if selected_town %}town={{ selected_town }}&{% endif %}{% if selected_block %}block={{ selected_block }}&{% endif %}{% if selected_status %}status={{ selected_status }}{% endif %}"
+                   class="btn btn-success btn-sm">
+                    <i class="bi bi-file-earmark-excel"></i> Excel
+                </a>
+                <a href="{% url 'development:plot_list_print' %}?{% if selected_town %}town={{ selected_town }}&{% endif %}{% if selected_block %}block={{ selected_block }}&{% endif %}{% if selected_status %}status={{ selected_status }}{% endif %}"
+                   target="_blank"
+                   class="btn btn-secondary btn-sm">
+                    <i class="bi bi-printer"></i> Print
+                </a>
                 <a href="{% url 'development:plot_add' %}" class="btn btn-primary btn-sm">
                     <i class="bi bi-plus-circle"></i> Add Plot
                 </a>
-                <a href="{% url 'development:plot_bulk_add' %}" class="btn btn-outline-primary btn-sm me-1">
+                <a href="{% url 'development:plot_bulk_add' %}" class="btn btn-outline-primary btn-sm">
                     <i class="bi bi-grid-3x3-gap"></i> BulkAdd
                 </a>
             </div>
@@ -79,9 +88,9 @@
                 <tr>
                     <th>#</th>
                     <th>Plot No</th>
-                    <th>Town</th>
                     <th>Block</th>
                     <th>Size</th>
+                    <th class="text-end">Marlas</th>
                     <th>Type</th>
                     <th class="text-end">Price (Rs.)</th>
                     <th class="text-end">Received (Rs.)</th>
@@ -91,14 +100,22 @@
                 </tr>
             </thead>
             <tbody>
-                {% for item in plots %}
+                {% for group in grouped %}
+                <!-- Town Header Row -->
+                <tr class="table-primary">
+                    <td colspan="11" class="fw-bold py-2 ps-2">
+                        <i class="bi bi-building"></i> {{ group.town_name }}
+                    </td>
+                </tr>
+
+                {% for item in group.items %}
                 {% with plot=item.obj %}
                 <tr>
                     <td>{{ forloop.counter }}</td>
                     <td class="fw-semibold">{{ plot.plot_no }}</td>
-                    <td>{{ plot.block.town.name }}</td>
                     <td>{{ plot.block.name }}</td>
                     <td>{{ plot.size }} {{ plot.size_unit }}</td>
+                    <td class="text-end">{{ item.marlas|floatformat:2 }}</td>
                     <td>
                         <span class="badge
                             {% if plot.plot_type == 'RESIDENTIAL' %}bg-primary
@@ -137,6 +154,18 @@
                     </td>
                 </tr>
                 {% endwith %}
+                {% endfor %}
+
+                <!-- Per-Town Totals -->
+                <tr class="table-info fw-bold">
+                    <td colspan="4" class="text-end">{{ group.town_name }} Total</td>
+                    <td class="text-end">{{ group.t_marlas|floatformat:2 }}</td>
+                    <td></td>
+                    <td class="text-end">{{ group.t_price|floatformat:0|intcomma }}</td>
+                    <td class="text-end text-success">{{ group.t_received|floatformat:0|intcomma }}</td>
+                    <td class="text-end text-danger">{{ group.t_balance|floatformat:0|intcomma }}</td>
+                    <td colspan="2"></td>
+                </tr>
                 {% empty %}
                 <tr>
                     <td colspan="11" class="text-center text-muted py-4">
@@ -145,10 +174,12 @@
                 </tr>
                 {% endfor %}
             </tbody>
-            {% if plots %}
-            <tfoot class="table-secondary fw-bold">
+            {% if grouped %}
+            <tfoot class="table-dark fw-bold">
                 <tr>
-                    <td colspan="6" class="text-end">Totals</td>
+                    <td colspan="4" class="text-end">Grand Total</td>
+                    <td class="text-end">{{ grand_marlas|floatformat:2 }}</td>
+                    <td></td>
                     <td class="text-end">{{ total_price|floatformat:0|intcomma }}</td>
                     <td class="text-end text-success">{{ total_received|floatformat:0|intcomma }}</td>
                     <td class="text-end text-danger">{{ total_balance|floatformat:0|intcomma }}</td>

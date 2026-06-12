@@ -27,6 +27,12 @@ class Expense(models.Model):
                         null=True, blank=True,
                         related_name='expenses'
                       )
+    town            = models.ForeignKey(
+                        'development.Town',
+                        on_delete=models.SET_NULL,
+                        null=True, blank=True,
+                        related_name='expenses'
+                      )
     title           = models.CharField(max_length=200)
     amount          = models.DecimalField(max_digits=15, decimal_places=2)
     expense_date    = models.DateField()

@@ -183,12 +183,14 @@ def booking_detail(request, pk):
     payment_plans = booking.payment_plans.all()
     receipts      = booking.receipts.filter(is_deleted=False).order_by('-receipt_date')
     today         = timezone.now().date()
+    cancellation  = Cancellation.objects.filter(booking=booking).first()
 
     return render(request, 'sales/booking_detail.html', {
         'booking':       booking,
         'payment_plans': payment_plans,
         'receipts':      receipts,
         'today':         today,
+        'cancellation':  cancellation,
     })
 
 
@@ -411,6 +413,16 @@ def booking_print(request, pk):
             'running_balance': running,
         })
 
+    # Decompose plot size into marlas + sqft for display
+    plot          = booking.plot
+    size_marlas   = float(plot.size or 0)
+    if plot.size_unit == 'KANAL':
+        size_marlas *= 20
+    elif plot.size_unit == 'SQFT':
+        size_marlas /= 270
+    plot_marla = int(size_marlas)
+    plot_sqft  = round((size_marlas - plot_marla) * 270)
+
     return render(request, 'sales/booking_print.html', {
         'booking':      booking,
         'business':     business,
@@ -418,6 +430,8 @@ def booking_print(request, pk):
         'receipts':     receipts_with_balance,
         'total_paid':   total_paid,
         'balance':      balance,
+        'plot_marla':   plot_marla,
+        'plot_sqft':    plot_sqft,
     })
 
 # ======================================================

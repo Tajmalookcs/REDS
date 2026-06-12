@@ -57,6 +57,10 @@ class Booking(models.Model):
         return f"Booking #{self.pk} — {self.customer.name} — Plot {self.plot.plot_no}"
 
     @property
+    def booking_no(self):
+        return f"BK-{self.pk:04d}"
+
+    @property
     def total_paid(self):
         return self.receipts.filter(
             is_deleted=False

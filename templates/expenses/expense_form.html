@@ -29,6 +29,19 @@
                 </div>
 
                 <div class="col-md-6">
+                    <label class="form-label fw-semibold">Town</label>
+                    <select name="town" class="form-select">
+                        <option value="">— General (No Town) —</option>
+                        {% for t in towns %}
+                        <option value="{{ t.pk }}"
+                            {% if expense and expense.town and expense.town.pk == t.pk %}selected{% endif %}>
+                            {{ t.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-6">
                     <label class="form-label fw-semibold">Amount (Rs.) <span class="text-danger">*</span></label>
                     <input type="number" name="amount" class="form-control"
                            value="{{ expense.amount|default:'' }}"
@@ -38,7 +51,7 @@
                 <div class="col-md-6">
                     <label class="form-label fw-semibold">Date <span class="text-danger">*</span></label>
                     <input type="date" name="expense_date" class="form-control"
-                           value="{{ expense.expense_date|default:'' }}" required>
+                           value="{{ expense.expense_date|default:today }}" required>
                 </div>
 
                 <div class="col-md-6">

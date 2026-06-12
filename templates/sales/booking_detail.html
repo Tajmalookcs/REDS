@@ -1,8 +1,16 @@
 {% extends 'base.html' %}
-{% block title %}Booking #{{ booking.pk }} — REDS{% endblock %}
-{% block page_title %}Booking #{{ booking.pk }}{% endblock %}
+{% block title %}Booking No. {{ booking.booking_no }} Details — REDS{% endblock %}
+{% block page_title %}Booking No. {{ booking.booking_no }} Details{% endblock %}
 
 {% block content %}
+
+<!-- Top Actions -->
+<div class="d-flex justify-content-end mb-3">
+    <a href="{% url 'sales:booking_print' booking.pk %}" target="_blank"
+       class="btn btn-outline-secondary">
+        <i class="bi bi-printer"></i> Print Booking
+    </a>
+</div>
 
 <!-- Summary Row -->
 <div class="row g-3 mb-4">
@@ -128,8 +136,60 @@
 
 <div class="row g-3">
 
+    <!-- Receipts -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-3">
+                    <h6 class="mb-0">Receipts</h6>
+                    {% if booking.status == 'ACTIVE' %}
+                    <button class="btn btn-sm btn-success"
+                            data-bs-toggle="modal"
+                            data-bs-target="#addReceiptModal">
+                        <i class="bi bi-plus-circle"></i> Add Receipt
+                    </button>
+                    {% endif %}
+                </div>
+                <table class="table table-sm align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Receipt No</th>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Mode</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in receipts %}
+                        <tr>
+                            <td class="fw-semibold">{{ r.receipt_no }}</td>
+                            <td>{{ r.receipt_date }}</td>
+                            <td class="text-success">{{ r.amount|floatformat:0 }}</td>
+                            <td>
+                                <span class="badge bg-secondary">{{ r.payment_mode }}</span>
+                            </td>
+                            <td class="text-end">
+                                <a href="{% url 'sales:receipt_print' r.pk %}"
+                                   target="_blank"
+                                   class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-printer"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-3">No receipts yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- Payment Plan -->
-    <div class="col-md-7">
+    <div class="col-12">
         <div class="card">
             <div class="card-body">
                 <div class="d-flex justify-content-between mb-3">
@@ -146,8 +206,7 @@
                             <i class="bi bi-calendar3"></i> Auto Plan
                         </button>
                     {% endif %}
-                </div>  
-
+                </div>
                 <table class="table table-sm align-middle">
                     <thead class="table-light">
                         <tr>
@@ -181,9 +240,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="5" class="text-center text-muted py-3">
-                                No installments added.
-                            </td>
+                            <td colspan="5" class="text-center text-muted py-3">No installments added.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -192,75 +249,148 @@
         </div>
     </div>
 
-    <!-- Receipts -->
-    ```html
-    <!-- Receipts -->
-        <div class="col-md-5">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between mb-3">
-                        <h6 class="mb-0">Receipts</h6>
-                        {% if booking.status == 'ACTIVE' %}
-                        <button class="btn btn-sm btn-success"
-                                data-bs-toggle="modal"
-                                data-bs-target="#addReceiptModal">
-                            <i class="bi bi-plus-circle"></i> Add Receipt
-                        </button>
-                        <a href="{% url 'sales:booking_print' booking.pk %}" target="_blank"
-                            class="btn btn-outline-secondary">
-                                <i class="bi bi-printer"></i> Print Booking
-                        </a>
+</div>
+
+
+<!-- ======================== -->
+<!-- CANCELLATION & REFUND   -->
+<!-- ======================== -->
+{% if cancellation %}
+<div class="row g-3 mt-1">
+    <div class="col-12">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-x-circle-fill"></i> Cancellation Details</span>
+                {% if cancellation.refund_status != 'PAID' and cancellation.refund_amount > 0 %}
+                <button class="btn btn-sm btn-light text-danger fw-bold"
+                        data-bs-toggle="modal" data-bs-target="#refundModal">
+                    <i class="bi bi-cash-coin"></i> Pay Refund
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <div class="text-muted small">Cancel Date</div>
+                        <div class="fw-semibold">{{ cancellation.cancellation_date }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-muted small">Refund Amount</div>
+                        <div class="fw-semibold text-danger">Rs. {{ cancellation.refund_amount|floatformat:0 }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-muted small">Refund Paid</div>
+                        <div class="fw-semibold text-success">
+                            Rs. {{ cancellation.refund_paid|default:0|floatformat:0 }}
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-muted small">Status</div>
+                        {% if cancellation.refund_status == 'PAID' %}
+                            <span class="badge bg-success">Paid</span>
+                        {% elif cancellation.refund_status == 'PARTIAL' %}
+                            <span class="badge bg-warning text-dark">Partial</span>
+                        {% elif cancellation.refund_status == 'PENDING' %}
+                            <span class="badge bg-danger">Pending</span>
+                        {% else %}
+                            <span class="badge bg-secondary">No Refund</span>
                         {% endif %}
                     </div>
-
-                    <table class="table table-sm align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Receipt No</th>
-                                <th>Date</th>
-                                <th>Amount</th>
-                                <th>Mode</th>
-                                <th class="text-end">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for r in receipts %}
-                            <tr>
-                                <td class="fw-semibold">{{ r.receipt_no }}</td>
-                                <td>{{ r.receipt_date }}</td>
-                                <td class="text-success">
-                                    {{ r.amount|floatformat:0 }}
-                                </td>
-                                <td>
-                                    <span class="badge bg-secondary">
-                                        {{ r.payment_mode }}
-                                    </span>
-                                </td>
-
-                                <td class="text-end">
-                                    <a href="{% url 'sales:receipt_print' r.pk %}"
-                                    target="_blank"
-                                    class="btn btn-sm btn-outline-secondary">
-                                        <i class="bi bi-printer"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="5"
-                                    class="text-center text-muted py-3">
-                                    No receipts yet.
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                    {% if cancellation.reason %}
+                    <div class="col-12">
+                        <div class="text-muted small">Reason</div>
+                        <div>{{ cancellation.reason }}</div>
+                    </div>
+                    {% endif %}
+                    {% if cancellation.refund_status == 'PAID' %}
+                    {% with rr=cancellation.refund_receipt %}
+                    {% if rr %}
+                    <div class="col-12">
+                        <a href="{% url 'sales:refund_receipt_print' rr.pk %}" target="_blank"
+                           class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-printer"></i> Print Refund Receipt ({{ rr.receipt_no }})
+                        </a>
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+                    {% endif %}
                 </div>
             </div>
         </div>
-
+    </div>
 </div>
 
+<!-- MODAL: Pay Refund -->
+<div class="modal fade" id="refundModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'sales:refund_pay' cancellation.pk %}">
+                {% csrf_token %}
+                <div class="modal-header bg-danger text-white">
+                    <h6 class="modal-title"><i class="bi bi-cash-coin"></i> Pay Refund</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning py-2 mb-3">
+                        Refund Due: <strong>Rs. {{ cancellation.refund_amount|floatformat:0 }}</strong>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Amount (Rs.) <span class="text-danger">*</span></label>
+                            <input type="number" name="refund_paid" class="form-control"
+                                   step="0.01" max="{{ cancellation.refund_amount }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Payment Date <span class="text-danger">*</span></label>
+                            <input type="date" name="refund_paid_date" class="form-control"
+                                   value="{% now 'Y-m-d' %}" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Payment Mode</label>
+                            <select name="refund_payment_mode" class="form-select"
+                                    onchange="toggleRefundMode(this)">
+                                <option value="CASH">Cash</option>
+                                <option value="BANK_TRANSFER">Bank Transfer</option>
+                                <option value="CHEQUE">Cheque</option>
+                            </select>
+                        </div>
+                        <div id="refundBankField" style="display:none;" class="col-12">
+                            <label class="form-label">Bank Account</label>
+                            <input type="text" name="bank_account" class="form-control">
+                        </div>
+                        <div id="refundChequeFields" style="display:none;" class="col-12">
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <label class="form-label">Cheque No</label>
+                                    <input type="text" name="cheque_no" class="form-control">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Bank</label>
+                                    <input type="text" name="cheque_bank" class="form-control">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Cheque Date</label>
+                                    <input type="date" name="cheque_date" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Notes</label>
+                            <input type="text" name="refund_notes" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-check-circle"></i> Confirm Refund Payment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- ======================== -->
 <!-- MODAL: Add Installment   -->
@@ -501,6 +631,13 @@
 <script>
 function toggleCheque(sel) {
     document.getElementById('chequeFields').style.display =
+        sel.value === 'CHEQUE' ? 'block' : 'none';
+}
+
+function toggleRefundMode(sel) {
+    document.getElementById('refundBankField').style.display =
+        sel.value === 'BANK_TRANSFER' ? 'block' : 'none';
+    document.getElementById('refundChequeFields').style.display =
         sel.value === 'CHEQUE' ? 'block' : 'none';
 }
 </script>

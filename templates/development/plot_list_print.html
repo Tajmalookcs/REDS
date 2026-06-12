@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Plots — Print</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; font-size: 11px; color: #000; }
+        h2 { text-align: center; font-size: 16px; margin-bottom: 4px; }
+        .subtitle { text-align: center; font-size: 11px; color: #555; margin-bottom: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
+        th { background: #1F3864; color: #fff; padding: 5px 6px; text-align: left; font-size: 10px; }
+        th.r, td.r { text-align: right; }
+        td { padding: 4px 6px; border-bottom: 1px solid #ddd; }
+        .town-hdr td { background: #2E75B6; color: #fff; font-weight: bold; padding: 5px 8px; font-size: 11px; }
+        .town-total td { background: #BDD7EE; font-weight: bold; }
+        .grand-total td { background: #1F3864; color: #fff; font-weight: bold; }
+        tr:nth-child(even) td { background: #f5f9ff; }
+        .town-hdr td, .town-total td, .grand-total td { background: initial; }
+        .town-hdr:nth-child(even) td  { background: #2E75B6; }
+        .town-total:nth-child(even) td { background: #BDD7EE; }
+        .badge { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: bold; }
+        .av { background: #198754; color: #fff; }
+        .bk { background: #ffc107; color: #000; }
+        .sd { background: #dc3545; color: #fff; }
+        .hd { background: #6c757d; color: #fff; }
+        .ca { background: #212529; color: #fff; }
+        @media print {
+            body { font-size: 10px; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <h2>Plots Report</h2>
+    <div class="subtitle">Generated: {% now "d M Y, H:i" %}</div>
+
+    <div class="no-print" style="text-align:center;margin-bottom:10px;">
+        <button onclick="window.print()" style="padding:6px 20px;font-size:13px;cursor:pointer;">
+            🖨 Print
+        </button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Plot No</th>
+                <th>Block</th>
+                <th>Size</th>
+                <th class="r">Marlas</th>
+                <th>Type</th>
+                <th class="r">Price (Rs.)</th>
+                <th class="r">Received (Rs.)</th>
+                <th class="r">Balance (Rs.)</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% load humanize %}
+        {% for group in grouped %}
+            <tr class="town-hdr">
+                <td colspan="10">🏙 {{ group.town_name }}</td>
+            </tr>
+            {% for item in group.items %}
+            {% with plot=item.obj %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td><strong>{{ plot.plot_no }}</strong></td>
+                <td>{{ plot.block.name }}</td>
+                <td>{{ plot.size }} {{ plot.size_unit }}</td>
+                <td class="r">{{ item.marlas|floatformat:2 }}</td>
+                <td>{{ plot.plot_type }}</td>
+                <td class="r">{{ item.display_price|floatformat:0|intcomma }}</td>
+                <td class="r">{{ item.received|floatformat:0|intcomma }}</td>
+                <td class="r">{{ item.balance|floatformat:0|intcomma }}</td>
+                <td>
+                    <span class="badge {% if plot.status == 'AVAILABLE' %}av{% elif plot.status == 'BOOKED' %}bk{% elif plot.status == 'SOLD' %}sd{% elif plot.status == 'HOLD' %}hd{% else %}ca{% endif %}">
+                        {{ plot.status }}
+                    </span>
+                </td>
+            </tr>
+            {% endwith %}
+            {% endfor %}
+            <tr class="town-total">
+                <td colspan="4" class="r"><strong>{{ group.town_name }} Total</strong></td>
+                <td class="r"><strong>{{ group.t_marlas|floatformat:2 }}</strong></td>
+                <td></td>
+                <td class="r"><strong>{{ group.t_price|floatformat:0|intcomma }}</strong></td>
+                <td class="r"><strong>{{ group.t_received|floatformat:0|intcomma }}</strong></td>
+                <td class="r"><strong>{{ group.t_balance|floatformat:0|intcomma }}</strong></td>
+                <td></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="grand-total">
+                <td colspan="4" class="r">GRAND TOTAL</td>
+                <td class="r">{{ grand_marlas|floatformat:2 }}</td>
+                <td></td>
+                <td class="r">{{ grand_price|floatformat:0|intcomma }}</td>
+                <td class="r">{{ grand_received|floatformat:0|intcomma }}</td>
+                <td class="r">{{ grand_balance|floatformat:0|intcomma }}</td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+</body>
+</html>

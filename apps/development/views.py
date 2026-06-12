@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import Town, Block, Plot, TownMap, PlotCoordinate
 import json
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
 from django.core.files.storage import default_storage
 
@@ -273,28 +273,66 @@ def plot_list(request):
             .annotate(amount_received=_Sum('receipts__amount'))
     }
 
-    plots_data     = []
-    total_price    = 0
-    total_received = 0
-    total_balance  = 0
+    def to_marlas(size, unit):
+        size = float(size or 0)
+        if unit == 'KANAL':
+            return size * 20
+        elif unit == 'SQFT':
+            return size / 270
+        return size  # MARLA
+
+    # Group by town
+    from collections import OrderedDict
+    towns_data = OrderedDict()
 
     for p in plots:
+        town_name = p.block.town.name
+        if town_name not in towns_data:
+            towns_data[town_name] = []
         bk            = booking_map.get(p.pk)
         display_price = (bk.net_price or p.price or 0) if bk else (p.price or 0)
         received      = (bk.amount_received or 0) if bk else 0
         balance       = display_price - received
-        total_price    += display_price
-        total_received += received
-        total_balance  += balance
-        plots_data.append({
+        marlas        = to_marlas(p.size, p.size_unit)
+        towns_data[town_name].append({
             'obj':           p,
             'display_price': display_price,
             'received':      received,
             'balance':       balance,
+            'marlas':        marlas,
         })
+
+    # Build grouped list with per-town totals
+    grouped = []
+    grand_price = grand_received = grand_balance = grand_marlas = 0
+
+    for town_name, items in towns_data.items():
+        t_price    = sum(i['display_price'] for i in items)
+        t_received = sum(i['received']      for i in items)
+        t_balance  = sum(i['balance']       for i in items)
+        t_marlas   = sum(i['marlas']        for i in items)
+        grand_price    += t_price
+        grand_received += t_received
+        grand_balance  += t_balance
+        grand_marlas   += t_marlas
+        grouped.append({
+            'town_name':    town_name,
+            'items':        items,
+            't_price':      t_price,
+            't_received':   t_received,
+            't_balance':    t_balance,
+            't_marlas':     t_marlas,
+        })
+
+    # flat list still needed for status badges
+    plots_data = [i for g in grouped for i in g['items']]
+    total_price    = grand_price
+    total_received = grand_received
+    total_balance  = grand_balance
 
     return render(request, 'development/plot_list.html', {
         'plots':           plots_data,
+        'grouped':         grouped,
         'towns':           towns,
         'blocks':          blocks,
         'selected_town':   town_id,
@@ -305,6 +343,7 @@ def plot_list(request):
         'total_price':     total_price,
         'total_received':  total_received,
         'total_balance':   total_balance,
+        'grand_marlas':    grand_marlas,
     })
 
 
@@ -342,12 +381,15 @@ def plot_add(request):
         ).order_by('block__name', 'plot_alpha', 'plot_num')
 
     if request.method == 'POST':
-        block = get_object_or_404(Block, pk=request.POST.get('block'))
+        block        = get_object_or_404(Block, pk=request.POST.get('block'))
+        size_marla   = float(request.POST.get('size_marla') or 0)
+        size_sqft    = float(request.POST.get('size_sqft')  or 0)
+        total_marlas = size_marla + size_sqft / 270
         Plot.objects.create(
             block      = block,
             plot_no    = request.POST.get('plot_no'),
-            size       = request.POST.get('size'),
-            size_unit  = request.POST.get('size_unit', 'MARLA'),
+            size       = round(total_marlas, 4),
+            size_unit  = 'MARLA',
             plot_type  = request.POST.get('plot_type', 'RESIDENTIAL'),
             price      = request.POST.get('price'),
             status     = request.POST.get('status', 'AVAILABLE'),
@@ -364,6 +406,8 @@ def plot_add(request):
         'existing_plots':     existing_plots,
         'selected_block_id':  selected_block_id,
         'selected_town_id':   selected_town_id,
+        'plot_marla':         '',
+        'plot_sqft':          '',
     })
 
 @login_required
@@ -374,10 +418,13 @@ def plot_edit(request, pk):
     ).select_related('town').order_by('town__name', 'name')
 
     if request.method == 'POST':
+        size_marla   = float(request.POST.get('size_marla') or 0)
+        size_sqft    = float(request.POST.get('size_sqft')  or 0)
+        total_marlas = size_marla + size_sqft / 270
         plot.block     = get_object_or_404(Block, pk=request.POST.get('block'))
         plot.plot_no   = request.POST.get('plot_no')
-        plot.size      = request.POST.get('size')
-        plot.size_unit = request.POST.get('size_unit', 'MARLA')
+        plot.size      = round(total_marlas, 4)
+        plot.size_unit = 'MARLA'
         plot.plot_type = request.POST.get('plot_type', 'RESIDENTIAL')
         plot.price     = request.POST.get('price')
         plot.status    = request.POST.get('status', 'AVAILABLE')
@@ -386,10 +433,21 @@ def plot_edit(request, pk):
         messages.success(request, 'Plot updated.')
         return redirect('development:plot_list')
 
+    # Convert existing size to marla + sqft for pre-filling the form
+    existing_marlas = float(plot.size or 0)
+    if plot.size_unit == 'KANAL':
+        existing_marlas *= 20
+    elif plot.size_unit == 'SQFT':
+        existing_marlas /= 270
+    plot_marla = int(existing_marlas)
+    plot_sqft  = round((existing_marlas - plot_marla) * 270)
+
     return render(request, 'development/plot_form.html', {
-        'plot':   plot,
-        'blocks': blocks,
-        'title':  'Edit Plot',
+        'plot':       plot,
+        'blocks':     blocks,
+        'title':      'Edit Plot',
+        'plot_marla': plot_marla,
+        'plot_sqft':  plot_sqft,
     })
 
 
@@ -879,3 +937,237 @@ def check_block_name(request):
         })
 
     return JsonResponse({'available': True, 'block': None})
+
+
+# ======================================================
+# PLOTS — EXCEL EXPORT
+# ======================================================
+
+def _get_plots_queryset(request):
+    """Shared filter logic for plot exports."""
+    block_id = request.GET.get('block', '').strip()
+    town_id  = request.GET.get('town', '').strip()
+    status   = request.GET.get('status', '').strip()
+
+    # Treat 'None' string or empty as no filter
+    if block_id in ('', 'None'):
+        block_id = None
+    if town_id in ('', 'None'):
+        town_id = None
+    if status in ('', 'None'):
+        status = None
+
+    plots = Plot.objects.filter(is_deleted=False).select_related('block__town').extra(
+        select={
+            'plot_alpha': "TRIM(TRIM(plot_no, '0123456789'), ' ')",
+            'plot_num':   "CAST(COALESCE(NULLIF(TRIM(plot_no, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz- '), ''), '0') AS INTEGER)",
+        }
+    )
+    if town_id:
+        plots = plots.filter(block__town_id=town_id)
+    if block_id:
+        plots = plots.filter(block_id=block_id)
+    if status:
+        plots = plots.filter(status=status)
+    return plots.order_by('block__town__name', 'block__name', 'plot_alpha', 'plot_num')
+
+
+def _to_marlas(size, unit):
+    size = float(size or 0)
+    if unit == 'KANAL':
+        return size * 20
+    elif unit == 'SQFT':
+        return size / 270
+    return size
+
+
+@login_required
+def plot_list_excel(request):
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from apps.sales.models import Booking
+    from django.db.models import Sum as _Sum
+
+    plots = _get_plots_queryset(request)
+    booking_map = {
+        b.plot_id: b
+        for b in Booking.objects
+            .filter(is_deleted=False, status__in=['ACTIVE', 'COMPLETED'])
+            .annotate(amount_received=_Sum('receipts__amount'))
+    }
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Plots'
+
+    # Styles
+    hdr_font   = Font(bold=True, color='FFFFFF')
+    hdr_fill   = PatternFill('solid', fgColor='1F3864')
+    town_font  = Font(bold=True, color='FFFFFF')
+    town_fill  = PatternFill('solid', fgColor='2E75B6')
+    sub_fill   = PatternFill('solid', fgColor='D6E4F0')
+    total_font = Font(bold=True)
+    total_fill = PatternFill('solid', fgColor='BDD7EE')
+    grand_fill = PatternFill('solid', fgColor='1F3864')
+    grand_font = Font(bold=True, color='FFFFFF')
+    center     = Alignment(horizontal='center', vertical='center')
+    right      = Alignment(horizontal='right')
+    thin       = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+
+    cols = ['#', 'Plot No', 'Block', 'Size', 'Unit', 'Marlas', 'Type',
+            'Price (Rs.)', 'Received (Rs.)', 'Balance (Rs.)', 'Status']
+    ws.append(cols)
+    for c in range(1, len(cols)+1):
+        cell = ws.cell(row=1, column=c)
+        cell.font      = hdr_font
+        cell.fill      = hdr_fill
+        cell.alignment = center
+        cell.border    = thin
+
+    from collections import OrderedDict
+    towns_data = OrderedDict()
+    for p in plots:
+        tn = p.block.town.name
+        if tn not in towns_data:
+            towns_data[tn] = []
+        bk            = booking_map.get(p.pk)
+        display_price = (bk.net_price or p.price or 0) if bk else (p.price or 0)
+        received      = (bk.amount_received or 0) if bk else 0
+        balance       = float(display_price) - float(received)
+        marlas        = _to_marlas(p.size, p.size_unit)
+        towns_data[tn].append((p, display_price, received, balance, marlas))
+
+    row_num = 2
+    grand_price = grand_received = grand_balance = grand_marlas = 0
+
+    for town_name, items in towns_data.items():
+        ws.merge_cells(start_row=row_num, start_column=1,
+                       end_row=row_num, end_column=len(cols))
+        tc = ws.cell(row=row_num, column=1, value=f'  {town_name}')
+        tc.font = town_font; tc.fill = town_fill
+        tc.alignment = Alignment(horizontal='left', vertical='center')
+        tc.border = thin
+        row_num += 1
+
+        t_price = t_received = t_balance = t_marlas = 0
+        for idx, (p, dp, rec, bal, mar) in enumerate(items, 1):
+            ws.append([idx, p.plot_no, p.block.name,
+                       float(p.size), p.size_unit, round(mar, 2),
+                       p.plot_type, float(dp), float(rec), round(bal, 2),
+                       p.status])
+            for c in range(1, len(cols)+1):
+                cell = ws.cell(row=row_num, column=c)
+                cell.border = thin
+                if c in (8, 9, 10):
+                    cell.alignment = right
+                if idx % 2 == 0:
+                    cell.fill = sub_fill
+            row_num += 1
+            t_price    += float(dp)
+            t_received += float(rec)
+            t_balance  += bal
+            t_marlas   += mar
+
+        ws.append(['', f'Total — {town_name}', '', '', '', round(t_marlas, 2),
+                   '', t_price, t_received, round(t_balance, 2), ''])
+        for c in range(1, len(cols)+1):
+            cell = ws.cell(row=row_num, column=c)
+            cell.font = total_font; cell.fill = total_fill; cell.border = thin
+            if c in (8, 9, 10):
+                cell.alignment = right
+        row_num += 1
+
+        grand_price    += t_price
+        grand_received += t_received
+        grand_balance  += t_balance
+        grand_marlas   += t_marlas
+
+    ws.append(['', 'GRAND TOTAL', '', '', '', round(grand_marlas, 2),
+               '', grand_price, grand_received, round(grand_balance, 2), ''])
+    for c in range(1, len(cols)+1):
+        cell = ws.cell(row=row_num, column=c)
+        cell.font = grand_font; cell.fill = grand_fill; cell.border = thin
+        if c in (8, 9, 10):
+            cell.alignment = right
+
+    widths = [5, 12, 14, 8, 8, 10, 14, 18, 18, 18, 12]
+    for i, w in enumerate(widths, 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+    ws.freeze_panes = 'A2'
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="plots.xlsx"'
+    wb.save(response)
+    return response
+
+
+# ======================================================
+# PLOTS — PRINT VIEW
+# ======================================================
+
+@login_required
+def plot_list_print(request):
+    from apps.sales.models import Booking
+    from django.db.models import Sum as _Sum
+    from collections import OrderedDict
+
+    plots = _get_plots_queryset(request)
+    booking_map = {
+        b.plot_id: b
+        for b in Booking.objects
+            .filter(is_deleted=False, status__in=['ACTIVE', 'COMPLETED'])
+            .annotate(amount_received=_Sum('receipts__amount'))
+    }
+
+    towns_data = OrderedDict()
+    for p in plots:
+        tn = p.block.town.name
+        if tn not in towns_data:
+            towns_data[tn] = []
+        bk            = booking_map.get(p.pk)
+        display_price = (bk.net_price or p.price or 0) if bk else (p.price or 0)
+        received      = (bk.amount_received or 0) if bk else 0
+        balance       = float(display_price) - float(received)
+        marlas        = _to_marlas(p.size, p.size_unit)
+        towns_data[tn].append({
+            'obj':           p,
+            'display_price': display_price,
+            'received':      received,
+            'balance':       balance,
+            'marlas':        marlas,
+        })
+
+    grouped = []
+    grand_price = grand_received = grand_balance = grand_marlas = 0
+    for town_name, items in towns_data.items():
+        t_price    = sum(float(i['display_price']) for i in items)
+        t_received = sum(float(i['received'])      for i in items)
+        t_balance  = sum(i['balance']              for i in items)
+        t_marlas   = sum(i['marlas']               for i in items)
+        grand_price    += t_price
+        grand_received += t_received
+        grand_balance  += t_balance
+        grand_marlas   += t_marlas
+        grouped.append({
+            'town_name':  town_name,
+            'items':      items,
+            't_price':    t_price,
+            't_received': t_received,
+            't_balance':  t_balance,
+            't_marlas':   t_marlas,
+        })
+
+    return render(request, 'development/plot_list_print.html', {
+        'grouped':        grouped,
+        'grand_price':    grand_price,
+        'grand_received': grand_received,
+        'grand_balance':  grand_balance,
+        'grand_marlas':   grand_marlas,
+    })

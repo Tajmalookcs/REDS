@@ -184,7 +184,7 @@
         {% endif %} -->
     </div>
 
-    <div class="doc-title">Booking Details</div>
+    <div class="doc-title">Details of Booking No. {{ booking.booking_no }}</div>
 
     <!-- Customer Info -->
     <div class="section-title">Customer Details</div>
@@ -221,7 +221,7 @@
                 </div>
                 <div class="row">
                     <span class="label">Phone:</span>
-                    <span class="value">{{ booking.customer.phone }}</span>
+                    <span class="value">{{ booking.customer.contact }}</span>
                 </div>
                 <div class="row">
                     <span class="label">City:</span>
@@ -241,8 +241,8 @@
     <div class="section-title">Plot Details</div>
     <div class="grid">
         <div class="row">
-            <span class="label">Town / Block:</span>
-            <span class="value">{{ booking.plot.block.town.name }} / Block – {{ booking.plot.block.name }}</span>
+            <span class="label">Block:</span>
+            <span class="value">{{ booking.plot.block.name }}</span>
         </div>
         <div class="row">
             <span class="label">Plot No:</span>
@@ -250,7 +250,9 @@
         </div>
         <div class="row">
             <span class="label">Size:</span>
-            <span class="value">{{ booking.plot.size }} {{ booking.plot.size_unit }}</span>
+            <span class="value">
+                {{ plot_marla }} Marla{% if plot_sqft %} {{ plot_sqft }} Sqft{% endif %}
+            </span>
         </div>
         <div class="row">
             <span class="label">Type:</span>

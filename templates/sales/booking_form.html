@@ -36,6 +36,9 @@
                     <label class="form-label fw-semibold">
                         Plot <span class="text-danger">*</span>
                     </label>
+                    <input type="text" id="plotSearch" class="form-control form-control-sm mb-1"
+                           placeholder="Type plot no, block or town to filter..."
+                           oninput="filterPlots(this.value)">
                     <select name="plot" class="form-select" id="plotSelect"
                             onchange="fillPrice()" required>
                         <option value="">— Select Available Plot —</option>
@@ -156,6 +159,29 @@
 function toggleCustomerMode(mode) {
     document.getElementById('existingCustomer').classList.toggle('d-none', mode === 'new');
     document.getElementById('newCustomer').classList.toggle('d-none', mode === 'existing');
+}
+
+const allPlotOptions = [];
+window.addEventListener('DOMContentLoaded', () => {
+    const sel = document.getElementById('plotSelect');
+    Array.from(sel.options).forEach(o => {
+        if (o.value) allPlotOptions.push({ value: o.value, text: o.text, price: o.dataset.price });
+    });
+});
+
+function filterPlots(q) {
+    const sel = document.getElementById('plotSelect');
+    const lower = q.toLowerCase();
+    sel.innerHTML = '<option value="">— Select Available Plot —</option>';
+    allPlotOptions
+        .filter(o => !lower || o.text.toLowerCase().includes(lower))
+        .forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o.value;
+            opt.dataset.price = o.price;
+            opt.textContent = o.text;
+            sel.appendChild(opt);
+        });
 }
 
 function fillPrice() {
